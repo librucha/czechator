@@ -492,12 +492,35 @@ mimo rozsah MVP.
 
 ### Rozhodnutí: Xcode se zatím neinstaluje
 
-Ověřeno, co v CLT funguje: `swift build`, `swift test`, `sourcekit-lsp`,
-`swift-format`, `lldb`/`lldb-dap`, `codesign`, `notarytool`, `iconutil`.
-Nefungují pouze `actool` a `ibtool` (pouhé shimy vyžadující Xcode).
+Ověřeno prakticky, co v CLT funguje: `swift build` (včetně SwiftUI `MenuBarExtra`
+a `Carbon.HIToolbox`), `sourcekit-lsp`, `swift-format`, `lldb`/`lldb-dap`,
+`codesign`, `notarytool`, `iconutil`. Nefungují `actool` a `ibtool` (shimy
+vyžadující Xcode).
 
 Vývojové prostředí je tedy VS Code se Swift rozšířením nad `sourcekit-lsp`
 a `lldb-dap` — autocomplete, diagnostika, formátování i breakpointy.
+
+#### Testy vyžadují dodatečné přepínače
+
+`swift test` samo o sobě **selže**: `XCTest.framework` v CLT vůbec není a
+`Testing.framework` sice je, ale mimo výchozí vyhledávací cesty.
+
+Testovacím frameworkem je proto **swift-testing** (`import Testing`), nikoli
+XCTest, a spouští se s doplněnými cestami:
+
+```
+FD=$(xcode-select -p)/Library/Developer/Frameworks
+LD=$(xcode-select -p)/Library/Developer/usr/lib
+swift test -Xswiftc -F -Xswiftc "$FD" \
+           -Xlinker -F -Xlinker "$FD" \
+           -Xlinker -rpath -Xlinker "$FD" \
+           -Xlinker -rpath -Xlinker "$LD"
+```
+
+Ověřeno, že takto testy proběhnou a správně hlásí úspěch i selhání. Přepínače
+zapouzdřuje `make test`, aby je nikdo nemusel opisovat. Po instalaci Xcode jsou
+zbytečné, ale neškodí — `Makefile` je přidává jen tehdy, když ty adresáře
+existují.
 
 Z toho plynou dvě závazná omezení:
 
