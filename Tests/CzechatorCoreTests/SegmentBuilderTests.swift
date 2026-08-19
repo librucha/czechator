@@ -54,3 +54,23 @@ private func build(_ text: String,
         .prepared(for: "x https://example.com/a y")
     #expect(prepared.excludedSpans.count == 1)
 }
+
+@Test func candidateScopeStopsAGreedyPatternAtTheNodeBoundary() throws {
+    // A URL pattern ending in \S+ used to run past the closing quote and eat
+    // the first word of the next JSON value.
+    let text = #"{"a":"koukni na https://x.com","b":"dalsi text k oprave"}"#
+    let segments = try JSONHandler(rules: .builtIn).segments(in: text)
+    #expect(segments.map(\.text) == ["koukni na", "dalsi text k oprave"])
+}
+
+@Test func candidateScopeStopsAGreedyPatternAtTagBoundary() throws {
+    let text = "<p>koukni na https://x.com</p><p>dalsi text</p>"
+    let segments = try HTMLHandler(rules: .builtIn).segments(in: text)
+    #expect(segments.map(\.text) == ["koukni na", "dalsi text"])
+}
+
+@Test func documentScopeStillHandlesMultiLinePatterns() throws {
+    let text = "pred\n```\nkod\n```\npo"
+    let segments = try PlainTextHandler(rules: .builtIn).segments(in: text)
+    #expect(segments.map(\.text) == ["pred", "po"])
+}

@@ -48,7 +48,7 @@ public struct HTMLHandler: FormatHandler {
     }
 
     public func segments(in text: String) throws -> [Segment] {
-        let prepared = builder.prepared(for: text)
+        let prepared = builder.prepared(for: text, scope: .candidate)
         return MarkupScanner.scan(text, options: options).flatMap { node in
             prepared.build(candidate: node.range, kind: .htmlText) {
                 MarkupEntities.unescape($0, table: MarkupEntities.htmlTable)

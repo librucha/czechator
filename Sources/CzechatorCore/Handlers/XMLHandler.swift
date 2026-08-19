@@ -27,7 +27,7 @@ public struct XMLHandler: FormatHandler {
     }
 
     public func segments(in text: String) throws -> [Segment] {
-        let prepared = builder.prepared(for: text)
+        let prepared = builder.prepared(for: text, scope: .candidate)
         return MarkupScanner.scan(text, options: options).flatMap { node in
             prepared.build(candidate: node.range, kind: .xmlText) {
                 MarkupEntities.unescape($0, table: MarkupEntities.xmlTable)

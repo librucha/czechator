@@ -20,7 +20,7 @@ public struct JSONHandler: FormatHandler {
 
     public func segments(in text: String) throws -> [Segment] {
         let literals = try JSONScanner.scan(text)
-        let prepared = builder.prepared(for: text)
+        let prepared = builder.prepared(for: text, scope: .candidate)
         var result: [Segment] = []
 
         for literal in literals {
