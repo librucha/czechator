@@ -4,15 +4,32 @@ public struct HTMLHandler: FormatHandler {
 
     public static let id = "html"
 
-    /// Element names that mark a document as HTML rather than generic XML.
-    private static let markers = [
-        "<html", "<div", "<span", "<body", "<p>", "<p ", "<br", "<ul", "<table",
+    /// Element names that only appear in HTML.
+    ///
+    /// Deliberately excludes `a`, `b` and `i`: they are plausible element names
+    /// in hand-written XML, and claiming them would steal XML documents. A bare
+    /// anchor fragment therefore loses to XML — acceptable, because anything
+    /// copied from a browser arrives with the `public.html` UTI anyway.
+    private static let signatureElements: Set<String> = [
+        "html", "head", "body", "div", "span", "p", "br", "hr", "img",
+        "ul", "ol", "li", "table", "thead", "tbody", "tr", "td", "th",
+        "h1", "h2", "h3", "h4", "h5", "h6", "em", "strong", "script", "style",
+        "form", "input", "button", "select", "option", "textarea", "iframe",
+        "nav", "header", "footer", "section", "article", "aside", "main",
+        "figure", "figcaption", "blockquote", "picture", "video", "audio",
     ]
 
     public static func confidence(for input: ClipboardInput) -> Double {
         if input.uti == "public.html" { return 1.0 }
-        let lowered = input.text.lowercased()
-        return markers.contains(where: lowered.contains) ? 0.75 : 0
+        if input.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased().hasPrefix("<!doctype html")
+        {
+            return 0.95
+        }
+        // Match parsed element names, not substrings: prose that mentions
+        // "<br" without ever closing a tag must not read as HTML.
+        let names = MarkupScanner.elementNames(in: input.text)
+        return names.contains(where: signatureElements.contains) ? 0.75 : 0
     }
 
     private let options: MarkupScanOptions

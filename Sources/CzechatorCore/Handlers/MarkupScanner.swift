@@ -55,6 +55,33 @@ public enum MarkupScanner {
         return text[after...].contains(">")
     }
 
+    /// Lowercased names of every element that opens in the document.
+    ///
+    /// Used for format detection: matching parsed element names beats
+    /// substring-searching for `"<div"`, which both misses valid markup and
+    /// fires on prose that merely mentions a tag.
+    public static func elementNames(in text: String) -> Set<String> {
+        var names: Set<String> = []
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            guard text[index] == "<" else {
+                index = text.index(after: index)
+                continue
+            }
+            let afterAngle = text.index(after: index)
+            guard afterAngle < text.endIndex, text[afterAngle].isLetter,
+                let tagEnd = text[index...].firstIndex(of: ">")
+            else {
+                index = afterAngle
+                continue
+            }
+            names.insert(elementName(of: text[afterAngle..<tagEnd]))
+            index = text.index(after: tagEnd)
+        }
+        return names
+    }
+
     public static func scan(_ text: String, options: MarkupScanOptions) -> [MarkupTextNode] {
         var nodes: [MarkupTextNode] = []
         var stack: [String] = []

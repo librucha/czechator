@@ -48,3 +48,22 @@ private func htmlHandler() throws -> HTMLHandler { try HTMLHandler(rules: .built
     #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<r><a>x</a></r>")) == 0)
     #expect(HTMLHandler.id == "html")
 }
+
+@Test func htmlWinsForFragmentsWithoutTheObviousMarkers() {
+    #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<h1>nadpis</h1>")) == 0.75)
+    #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<em>text</em>")) == 0.75)
+    #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<img src=\"x\">")) == 0.75)
+    #expect(
+        HTMLHandler.confidence(for: ClipboardInput(text: "<script>var x = 1;</script>")) == 0.75)
+    #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<!DOCTYPE html><foo/>")) == 0.95)
+}
+
+@Test func proseMentioningATagIsNotMistakenForHTML() {
+    let prose = "Pouzij znacku <br pro zalomeni v HTML dokumentu, jinak to nefunguje."
+    #expect(HTMLHandler.confidence(for: ClipboardInput(text: prose)) == 0)
+}
+
+@Test func genericXMLDoesNotGetStolenByHTML() {
+    #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<r><a>x</a></r>")) == 0)
+    #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<kniha><b>x</b></kniha>")) == 0)
+}
