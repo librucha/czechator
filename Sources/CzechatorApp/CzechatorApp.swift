@@ -26,6 +26,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Opens the app's own Settings scene and brings it to the front.
+///
+/// `SettingsLink` alone is not enough here: `LSUIElement` makes this an
+/// accessory app, which is never the active one, so the window opened behind
+/// whatever the user was looking at — sometimes with nothing visible at all.
+/// Activating first puts it in front, and activating again afterwards covers
+/// the case where the window already existed and only needed raising.
+@MainActor
+private func openSettings() {
+    NSApplication.shared.activate(ignoringOtherApps: true)
+    NSApplication.shared.sendAction(
+        Selector(("showSettingsWindow:")), to: nil, from: nil)
+    NSApplication.shared.activate(ignoringOtherApps: true)
+}
+
 struct MenuContent: View {
 
     @ObservedObject var model: AppModel
@@ -57,7 +72,7 @@ struct MenuContent: View {
             }
 
             Divider()
-            SettingsLink { Text("Nastavení…") }
+            Button("Nastavení…") { openSettings() }
             Button("Ukončit") { NSApplication.shared.terminate(nil) }
         }
         // Opening the menu counts as acknowledging the error: the badge clears
