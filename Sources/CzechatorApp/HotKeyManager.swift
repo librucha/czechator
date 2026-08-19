@@ -61,7 +61,10 @@ final class HotKeyManager {
             &eventType,
             Unmanaged.passUnretained(self).toOpaque(),
             &handlerReference)
-        guard installed == noErr else { throw HotKeyError.registrationFailed(installed) }
+        guard installed == noErr else {
+            unregisterAll()
+            throw HotKeyError.registrationFailed(installed)
+        }
 
         // "CZCH"
         let identifier = EventHotKeyID(signature: OSType(0x435A_4348), id: 1)
@@ -72,7 +75,14 @@ final class HotKeyManager {
             GetApplicationEventTarget(),
             0,
             &reference)
-        guard registered == noErr else { throw HotKeyError.registrationFailed(registered) }
+        guard registered == noErr else {
+            // A failed register must leave nothing behind: the event handler is
+            // already installed at this point, and the usual cause is another
+            // application holding the shortcut, which the user will want to fix
+            // and retry.
+            unregisterAll()
+            throw HotKeyError.registrationFailed(registered)
+        }
     }
 
     func unregisterAll() {
