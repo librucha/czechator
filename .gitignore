@@ -5,3 +5,6 @@
 build/
 *.app
 img/*.zip
+
+# Implementační plán se dá kdykoli vygenerovat ze specifikace.
+docs/superpowers/plans/

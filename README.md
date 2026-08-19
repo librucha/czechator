@@ -316,11 +316,13 @@ The central design decision: **handlers report ranges, they never serialize.**
 those ranges from the original string. Everything outside them is untouched by
 construction rather than by care.
 
-`docs/` holds the original design note and implementation plan. They are a
-historical record: the implementation moved on from them in several places —
-notably how JSON escapes and HTML entities are tracked (by grapheme position
-rather than by flag), and everything around whitespace and letter case, none of
-which the design anticipated. Each file says so at the top.
+[`docs/design.md`](docs/design.md) is the design note the tool was built from —
+why segments are ranges rather than tree nodes, why the prompt is English with
+Czech examples, which alternatives were rejected and on what grounds. It records
+the reasoning, not the current code: the implementation moved on in several
+places, notably how JSON escapes and HTML entities are tracked (by grapheme
+position rather than by flag) and everything around whitespace and letter case,
+none of which the design anticipated.
 
 ## Contributing
 

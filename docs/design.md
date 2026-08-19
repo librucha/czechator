@@ -1,8 +1,12 @@
 # Czechator — návrh
 
-> **Historický dokument.** Zachycuje návrh, jak vypadal *před* implementací.
-> Kód se od něj během vývoje na několika místech vědomě odchýlil — každou
-> odchylku vysvětluje příslušný commit. Autoritou je kód, ne tento text.
+> **Návrh, jak vypadal před implementací.** Zachycuje uvažování a rozhodnutí,
+> ne současný stav kódu — ten se od něj na několika místech vědomě odchýlil a
+> každou odchylku vysvětluje příslušný commit. Autoritou je kód.
+>
+> Dokument je tu proto, že vysvětluje *proč*: proč jsou segmenty rozsahy a ne
+> uzly stromu, proč se zamítla varianta s Hammerspoonem, proč jsou instrukce
+> promptu anglicky a příklady česky. To všechno platí dál.
 >
 > Nejpodstatnější věci, které v návrhu nejsou a v kódu ano:
 >
