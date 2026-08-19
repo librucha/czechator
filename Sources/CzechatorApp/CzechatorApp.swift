@@ -11,6 +11,10 @@ struct CzechatorApp: App {
         MenuBarExtra("Czechator", systemImage: model.iconName) {
             MenuContent(model: model)
         }
+
+        Settings {
+            SettingsView(model: model)
+        }
     }
 }
 
@@ -50,6 +54,7 @@ struct MenuContent: View {
             }
 
             Divider()
+            SettingsLink { Text("Nastavení…") }
             Button("Ukončit") { NSApplication.shared.terminate(nil) }
         }
         // Opening the menu counts as acknowledging the error: the badge clears

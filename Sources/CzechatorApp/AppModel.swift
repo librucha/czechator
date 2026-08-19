@@ -145,6 +145,41 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: - Settings
+
+    var profileNames: [String] { config.profiles.keys.sorted() }
+    var activeProfileName: String { config.activeProfile }
+    var shortcutText: String { config.hotkeys.first?.shortcut ?? "cmd+ctrl+d" }
+
+    func endpointDescription(for profile: String) -> String? {
+        config.profiles[profile].map { "\($0.kind.rawValue) · \($0.endpoint) · \($0.model)" }
+    }
+
+    func keychainAccount(for profile: String) -> String? {
+        if case .keychain(let account) = config.profiles[profile]?.apiKey { return account }
+        return nil
+    }
+
+    /// Writes through ConfigStore, which preserves keys the app does not know
+    /// about, then re-registers the hotkey.
+    func applySettings(activeProfile: String, shortcut: String) {
+        var updated = config
+        updated.activeProfile = activeProfile
+        if updated.hotkeys.isEmpty {
+            updated.hotkeys = [
+                HotkeyBinding(shortcut: shortcut, source: "clipboard", sink: "clipboard")
+            ]
+        } else {
+            updated.hotkeys[0].shortcut = shortcut
+        }
+        do {
+            try store.save(updated)
+            reload()
+        } catch {
+            startupProblem = ErrorMessages.describe(error)
+        }
+    }
+
     private func record(_ entry: HistoryEntry) {
         guard config.features.history else { return }
         history.insert(entry, at: 0)
