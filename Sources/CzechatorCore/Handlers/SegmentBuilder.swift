@@ -71,8 +71,10 @@ public struct SegmentBuilder: @unchecked Sendable {
 public struct PreparedSegmenter: @unchecked Sendable {
 
     public let text: String
-    /// Non-empty only in `.document` scope; `.candidate` scope matches lazily.
-    public let excludedSpans: [Range<String.Index>]
+    /// Internal on purpose: it is populated only in `.document` scope, and a
+    /// public field that silently reads empty for three of the four handlers is
+    /// a trap for anyone building on it.
+    let excludedSpans: [Range<String.Index>]
     let scope: SegmentBuilder.PatternScope
     let regexes: [NSRegularExpression]
     public let minLength: Int

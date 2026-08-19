@@ -33,7 +33,19 @@ public enum SegmentationDebug {
             guard let literals = try? JSONScanner.scan(text) else {
                 return [text.startIndex..<text.endIndex]
             }
-            return literals.filter { !($0.isKey && rules.json.skipKeys) }.map(\.contentRange)
+            return
+                literals
+                .filter { literal in
+                    if literal.isKey, rules.json.skipKeys { return false }
+                    // Values the rules drop wholesale are never scanned by the
+                    // handler either; reporting a pattern match inside one would
+                    // give the wrong reason for a missing segment.
+                    if let key = literal.parentKey, rules.json.skipValuesForKeys.contains(key) {
+                        return false
+                    }
+                    return true
+                }
+                .map(\.contentRange)
 
         case XMLHandler.id:
             let options = MarkupScanOptions(

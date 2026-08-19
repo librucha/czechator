@@ -40,3 +40,11 @@ import Testing
     // Not "https://x.com\",\"b\":\"dalsi" — the pattern stops at the value's end.
     #expect(spans.map(\.text) == ["https://x.com"])
 }
+
+@Test func doesNotReportSpansInsideValuesTheRulesDropWholesale() throws {
+    // The handler never scans this value at all, so blaming the URL pattern
+    // would give the wrong reason for the missing segment.
+    let text = #"{"id":"https://example.com/track","note":"dalsi text"}"#
+    let spans = try SegmentationDebug.excludedSpans(in: text, rules: .builtIn, formatID: "json")
+    #expect(spans.isEmpty)
+}
