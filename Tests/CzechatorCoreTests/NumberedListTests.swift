@@ -55,3 +55,17 @@ import Testing
 @Test func systemOverrideReplacesTheBuiltInPrompt() {
     #expect(PromptBuilder.build(items: ["x"], systemOverride: "vlastni").system == "vlastni")
 }
+
+@Test func decodeRejectsAnItemWrappedAcrossLines() {
+    // The item count would still add up, so a silent skip would truncate text.
+    #expect(throws: NumberedListError.unexpectedContinuation(afterItem: 2)) {
+        try NumberedList.decode(
+            "1. prvni\n2. druhy radek\npokracovani druheho", expectedCount: 2)
+    }
+}
+
+@Test func decodeStillToleratesAPreambleBeforeTheFirstItem() throws {
+    #expect(
+        try NumberedList.decode("Zde je opraveny seznam:\n1. prvni\n2. druhy", expectedCount: 2)
+            == ["prvni", "druhy"])
+}

@@ -3,6 +3,7 @@ import Foundation
 public enum NumberedListError: Error, Equatable {
     case countMismatch(expected: Int, got: Int)
     case badNumbering(atItem: Int)
+    case unexpectedContinuation(afterItem: Int)
 }
 
 /// Wire format between the tool and the model. Items are escaped so a segment
@@ -26,7 +27,14 @@ public enum NumberedList {
 
             guard let dot = line.firstIndex(of: "."),
                 let number = Int(line[line.startIndex..<dot].trimmingCharacters(in: .whitespaces))
-            else { continue }
+            else {
+                // Before the first item this is a preamble the model tacked on.
+                // After it, the model wrapped an item across lines — dropping
+                // that line would silently truncate the text while the item
+                // count still added up.
+                if items.isEmpty { continue }
+                throw NumberedListError.unexpectedContinuation(afterItem: items.count)
+            }
 
             guard number == items.count + 1 else {
                 throw NumberedListError.badNumbering(atItem: items.count + 1)
