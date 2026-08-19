@@ -22,8 +22,7 @@ struct CzechatorApp: App {
         Window("Nastavení Czechator", id: Self.settingsWindowID) {
             SettingsView(model: model)
         }
-        .defaultSize(width: 460, height: 340)
-        .windowResizability(.contentSize)
+        .defaultSize(width: 480, height: 420)
     }
 }
 

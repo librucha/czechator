@@ -21,14 +21,19 @@ struct SettingsView: View {
                     ForEach(model.profileNames, id: \.self) { Text($0) }
                 }
                 if let endpoint = model.endpointDescription(for: activeProfile) {
-                    Text(endpoint).font(.caption).foregroundStyle(.secondary)
+                    Text(endpoint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
             }
 
             Section("Zkratka") {
-                TextField("Zkratka", text: $shortcut)
+                TextField("Zkratka", text: $shortcut, prompt: Text("cmd+ctrl+d"))
                 if let warning {
-                    Text(warning).font(.caption).foregroundStyle(.orange)
+                    Label(warning, systemImage: shortcutIsValid ? "exclamationmark.triangle" : "xmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(shortcutIsValid ? .orange : .red)
                 }
             }
 
@@ -36,16 +41,25 @@ struct SettingsView: View {
                 SecureField("API klíč", text: $apiKey)
                     .disabled(model.keychainAccount(for: activeProfile) == nil)
                 Text("Uloží se do Keychainu, nikoli do konfiguračního souboru.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Spacer()
-                Button("Uložit") { save() }.disabled(!shortcutIsValid)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding(20)
-        .frame(width: 420)
+        // Without this the form renders as bare rows: a plain Window does not
+        // get the grouped appearance the Settings scene applies for free.
+        .formStyle(.grouped)
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Spacer()
+                Button("Uložit") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!shortcutIsValid)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
+        }
+        .frame(minWidth: 460, minHeight: 380)
         .onAppear { load() }
         .onChange(of: shortcut) { _, new in validate(new) }
     }
