@@ -72,6 +72,41 @@ private func texts(_ input: String, _ options: MarkupScanOptions = baseOptions) 
     #expect(nodes[0].isAttributeValue)
 }
 
+@Test func returnsCommentBodyWhenCommentsAreNotSkipped() {
+    var options = baseOptions
+    options.skipComments = false
+    #expect(texts("<r><!-- poznamka v textu -->obsah</r>", options)
+        == [" poznamka v textu ", "obsah"])
+}
+
+@Test func returnsProcessingInstructionBodyWhenNotSkipped() {
+    var options = baseOptions
+    options.skipProcessingInstructions = false
+    #expect(texts("<?nejaka instrukce?><r>obsah</r>", options)
+        == ["nejaka instrukce", "obsah"])
+}
+
+@Test func keepsWholeBodyOfUnterminatedCDATA() {
+    // Subtracting the terminator's length would eat the last three characters.
+    #expect(texts("<r><![CDATA[abcdef") == ["abcdef"])
+}
+
+@Test func keepsWholeBodyOfUnterminatedComment() {
+    var options = baseOptions
+    options.skipComments = false
+    #expect(texts("<r><!-- abcdef", options) == [" abcdef"])
+}
+
+@Test func skipsWholeSubtreeOfSkippedElement() {
+    var options = baseOptions
+    options.skipElements = ["script"]
+    #expect(texts("<p>viditelne</p><script><b>skryte</b></script>", options) == ["viditelne"])
+}
+
+@Test func doctypeIsNeverReturnedAsText() {
+    #expect(texts("<!DOCTYPE html><p>obsah</p>") == ["obsah"])
+}
+
 @Test func detectsMarkupHeuristically() {
     #expect(MarkupScanner.looksLikeMarkup("<p>ahoj</p>"))
     #expect(MarkupScanner.looksLikeMarkup("<?xml version=\"1.0\"?><r/>"))

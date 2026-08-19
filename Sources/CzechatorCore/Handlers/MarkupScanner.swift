@@ -61,12 +61,30 @@ public enum MarkupScanner {
         var index = text.startIndex
         var textStart = text.startIndex
 
-        func flushText(upTo end: String.Index) {
-            guard textStart < end else { return }
+        /// Emits a node unless an enclosing element is on the skip list.
+        func emit(_ range: Range<String.Index>) {
+            guard range.lowerBound < range.upperBound else { return }
             if stack.contains(where: { options.skipElements.contains($0) }) { return }
             nodes.append(
-                MarkupTextNode(
-                    range: textStart..<end, elementPath: stack, isAttributeValue: false))
+                MarkupTextNode(range: range, elementPath: stack, isAttributeValue: false))
+        }
+
+        func flushText(upTo end: String.Index) {
+            guard textStart < end else { return }
+            emit(textStart..<end)
+        }
+
+        /// Handles one delimited construct: emits its body when the matching
+        /// skip flag is off, then resumes after the terminator.
+        func consume(
+            openingWidth: Int, terminator: String, skipped: Bool, from opening: String.Index
+        ) {
+            flushText(upTo: opening)
+            let contentStart = text.index(opening, offsetBy: openingWidth)
+            let bounds = span(text, from: contentStart, terminatedBy: terminator)
+            if !skipped { emit(contentStart..<bounds.contentEnd) }
+            index = bounds.resume
+            textStart = index
         }
 
         while index < text.endIndex {
@@ -76,44 +94,27 @@ public enum MarkupScanner {
             }
 
             if text[index...].hasPrefix("<!--") {
-                flushText(upTo: index)
-                index = advance(text, from: index, past: "-->")
-                textStart = index
+                consume(
+                    openingWidth: 4, terminator: "-->", skipped: options.skipComments, from: index)
                 continue
             }
 
             if text[index...].hasPrefix("<![CDATA[") {
-                flushText(upTo: index)
-                let contentStart = text.index(index, offsetBy: 9)
-                let end = advance(text, from: contentStart, past: "]]>")
-                if !options.skipCDATA,
-                    !stack.contains(where: { options.skipElements.contains($0) })
-                {
-                    let contentEnd = text.index(end, offsetBy: -3, limitedBy: contentStart)
-                        ?? contentStart
-                    if contentStart < contentEnd {
-                        nodes.append(
-                            MarkupTextNode(
-                                range: contentStart..<contentEnd, elementPath: stack,
-                                isAttributeValue: false))
-                    }
-                }
-                index = end
-                textStart = index
+                consume(
+                    openingWidth: 9, terminator: "]]>", skipped: options.skipCDATA, from: index)
                 continue
             }
 
             if text[index...].hasPrefix("<?") {
-                flushText(upTo: index)
-                index = advance(text, from: index, past: "?>")
-                textStart = index
+                consume(
+                    openingWidth: 2, terminator: "?>",
+                    skipped: options.skipProcessingInstructions, from: index)
                 continue
             }
 
             if text[index...].hasPrefix("<!") {
-                flushText(upTo: index)
-                index = advance(text, from: index, past: ">")
-                textStart = index
+                // Doctype and other declarations are never correctable text.
+                consume(openingWidth: 2, terminator: ">", skipped: true, from: index)
                 continue
             }
 
@@ -150,13 +151,18 @@ public enum MarkupScanner {
             .lowercased()
     }
 
-    private static func advance(
-        _ text: String, from index: String.Index, past terminator: String
-    ) -> String.Index {
-        guard let found = text.range(of: terminator, range: index..<text.endIndex) else {
-            return text.endIndex
+    /// Locates a construct's body and where scanning resumes after it.
+    ///
+    /// An unterminated construct runs to the end of the document; the body then
+    /// ends at `endIndex` too. Computing the body end by subtracting the
+    /// terminator's length would silently eat the last characters of real text.
+    private static func span(
+        _ text: String, from start: String.Index, terminatedBy terminator: String
+    ) -> (contentEnd: String.Index, resume: String.Index) {
+        guard let found = text.range(of: terminator, range: start..<text.endIndex) else {
+            return (text.endIndex, text.endIndex)
         }
-        return found.upperBound
+        return (found.lowerBound, found.upperBound)
     }
 
     /// Scans `name="value"` pairs inside an already-delimited tag body.
