@@ -138,8 +138,8 @@ how many passed verification. Those are different numbers and both matter.
 ## Which model to use
 
 `qwen3:4b-instruct` is the default and the one that was measured. On the
-22-sample suite in `Fixtures/quality/` it got 15 exactly right and 21 past
-verification.
+23-sample suite in `Fixtures/quality/` it got 15 exactly right and 22 past
+verification. Its misses are almost all a missing `ě`.
 
 `gemma3:4b` was measured too and is **not recommended** — 4/10 exact, 5/10
 verified, and its failures included swapping whole words (see above). Nothing
