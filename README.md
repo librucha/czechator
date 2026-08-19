@@ -99,6 +99,7 @@ cp .build/release/czechator /usr/local/bin/
 ```bash
 make build     # both targets
 make test      # 195 tests
+make icon      # build/Czechator.icns from img/exports/AppIcon.appiconset
 make app       # build/Czechator.app
 ```
 

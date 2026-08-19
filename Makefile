@@ -35,23 +35,23 @@ BIN := $(APP)/Contents/MacOS/CzechatorApp
 
 .PHONY: app install icon
 
-# Optional: drop a 1024x1024 Resources/icon.png in and this produces the icns.
-# A menu bar only app (LSUIElement) shows its icon just in Finder, so the
-# default is acceptable and the bundle builds without one.
+ICONSET_SRC := img/exports/AppIcon.appiconset
+
+# The icon is rendered per size, each variant with its own padding, corner
+# radius and shadow; rescaling one 1024 px artwork would throw that away and
+# blur the 16 px one. iconutil wants @2x names, the export ships -2x, so the
+# staging copy renames them — the exported set stays the single source.
 icon:
-	@if [ -f Resources/icon.png ]; then \
+	@if [ -d $(ICONSET_SRC) ]; then \
 	  rm -rf build/Czechator.iconset; \
 	  mkdir -p build/Czechator.iconset; \
-	  for size in 16 32 64 128 256 512; do \
-	    sips -z $$size $$size Resources/icon.png \
-	      --out build/Czechator.iconset/icon_$${size}x$${size}.png >/dev/null; \
-	    sips -z $$((size*2)) $$((size*2)) Resources/icon.png \
-	      --out build/Czechator.iconset/icon_$${size}x$${size}@2x.png >/dev/null; \
+	  for f in $(ICONSET_SRC)/icon_*.png; do \
+	    cp "$$f" "build/Czechator.iconset/$$(basename $$f | sed 's/-2x/@2x/')"; \
 	  done; \
 	  iconutil --convert icns build/Czechator.iconset --output build/Czechator.icns; \
 	  echo "ikona sestavena"; \
 	else \
-	  echo "Resources/icon.png chybi, bundle pojede s vychozi ikonou"; \
+	  echo "$(ICONSET_SRC) chybi, bundle pojede s vychozi ikonou"; \
 	fi
 
 app: icon
