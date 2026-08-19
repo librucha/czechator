@@ -6,6 +6,8 @@ public enum ErrorMessages {
         switch error {
         case let error as PipelineError:
             return describe(error)
+        case let error as ClipboardError:
+            return describe(error)
         case let error as SecretError:
             return describe(error)
         case let error as ConfigError:
@@ -39,6 +41,15 @@ public enum ErrorMessages {
             return "vrátil chybu HTTP \(status)."
         case .unparsableResponse:
             return "vrátil odpověď, kterou nešlo zpracovat."
+        }
+    }
+
+    static func describe(_ error: ClipboardError) -> String {
+        switch error {
+        case .empty, .noTextRepresentation:
+            return "Ve schránce není text."
+        case .unsupportedFormat(let name):
+            return "Formát \(name) zatím neumím."
         }
     }
 

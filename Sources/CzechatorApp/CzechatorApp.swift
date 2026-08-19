@@ -1,14 +1,59 @@
 import AppKit
 import SwiftUI
 
-/// Minimal entry point. The task that adds the model, history and error states
-/// replaces the menu contents; this version exists so the target links and the
-/// hotkey layer can be built and reviewed on its own.
 @main
 struct CzechatorApp: App {
+
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @StateObject private var model = AppModel.shared
+
     var body: some Scene {
-        MenuBarExtra("Czechator", systemImage: "textformat.abc.dottedunderline") {
+        MenuBarExtra("Czechator", systemImage: model.iconName) {
+            MenuContent(model: model)
+        }
+    }
+}
+
+/// Bootstraps the model once the app is actually running — the hotkey needs a
+/// live event target and the notification prompt needs a foreground session.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated { AppModel.shared.start() }
+    }
+}
+
+struct MenuContent: View {
+
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        Group {
+            Button("Doplnit diakritiku") { model.run() }
+
+            if let problem = model.startupProblem {
+                Divider()
+                Text(problem)
+            }
+
+            if let detail = model.lastErrorDetail {
+                Divider()
+                Text("Poslední chyba: \(detail)")
+            }
+
+            if !model.history.isEmpty {
+                Divider()
+                Text("Historie")
+                ForEach(model.history) { entry in
+                    Button(entry.preview) { model.restore(entry) }
+                        .disabled(!entry.succeeded)
+                }
+            }
+
+            Divider()
             Button("Ukončit") { NSApplication.shared.terminate(nil) }
         }
+        // Opening the menu counts as acknowledging the error: the badge clears
+        // but the detail stays readable in the history below.
+        .onAppear { model.acknowledgeError() }
     }
 }
