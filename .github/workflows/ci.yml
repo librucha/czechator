@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: make build
+
+      # make test supplies the framework search paths the Command Line Tools
+      # need; with full Xcode on the runner they are harmless no-ops.
+      - name: Test
+        run: make test
+
+      - name: Build the app bundle
+        run: make app
+
+      - name: Verify the signature
+        run: codesign --verify --verbose build/Czechator.app

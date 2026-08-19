@@ -75,7 +75,7 @@ does not reformat. It adds accents and nothing else.
 ## Install from source
 
 ```bash
-git clone <repository-url> czechator
+git clone https://github.com/librucha/czechator.git
 cd czechator
 
 ollama pull qwen3:4b-instruct     # ~2.5 GB
@@ -318,6 +318,19 @@ construction rather than by care.
 
 Design notes and the implementation plan are in `docs/superpowers/`.
 
+## Contributing
+
+Issues and pull requests are welcome. Two things to know before you open one:
+
+- `make test` must stay green, and it runs with only the Command Line Tools
+  installed — no Xcode required.
+- Rules that exist to prevent data corruption are deliberately **not**
+  configurable. The config file is materialized on first run and then wins, so a
+  safety default shipped later would never reach an existing installation.
+
 ## License
 
-TBD
+MIT — see [LICENSE](LICENSE).
+
+Dependencies are linked statically; their notices are in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
