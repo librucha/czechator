@@ -186,6 +186,12 @@ public struct Pipeline: Sendable {
     ///
     /// Only the edges are touched; every other difference still faces the
     /// verifier unchanged.
+    ///
+    /// The realignment is unconditional, which means a model that *dropped* real
+    /// edge content — the trailing `\n` of a JSON string — is indistinguishable
+    /// from one that merely added spaces, and gets silently corrected instead of
+    /// retried. The output is still forced to the truth, so nothing wrong can
+    /// reach the clipboard; the verifier simply never sees that particular slip.
     static func alignEdgeWhitespace(_ corrected: String, like original: String) -> String {
         let leading = original.prefix { $0.isWhitespace }
         let trailing = original.reversed().prefix { $0.isWhitespace }.reversed()

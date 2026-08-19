@@ -20,6 +20,10 @@ public enum PromptBuilder {
     /// "preserve casing" wording let the model capitalize sentence-initial
     /// words (`posilam` → `Posílám`); spelling the rule out with an example
     /// took the suite from 5/10 exact and 8/10 verified to 6/10 and 9/10.
+    ///
+    /// It also introduced the mirror problem: a genuinely capitalized sentence
+    /// start now sometimes comes back lowercased. The verifier rejects that too,
+    /// so it costs a refusal rather than a corruption.
     public static let defaultSystem = """
         You restore Czech diacritics. You are a mechanical transformer, not an editor.
 

@@ -205,3 +205,17 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
     #expect(Pipeline.alignEdgeWhitespace("opraveno", like: "puvodni\n") == "opraveno\n")
     #expect(Pipeline.alignEdgeWhitespace("  opraveno  ", like: "\tpuvodni") == "\topraveno")
 }
+
+@Test func keepsEdgeWhitespaceThatUnescapingProduced() async throws {
+    // The raw range is trimmed at source level, where "\n" is two characters,
+    // so the segment text ends with a real newline only after unescaping.
+    // Realignment must restore that, not the model's idea of it.
+    let sloppy = FakeProvider { $0.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) + "   " } }
+    let json = #"{"a": "Prilis zlutoucky kun\n"}"#
+    let result = try await pipeline(sloppy).run(ClipboardInput(text: json))
+    #expect(result.correctedText == json)
+
+    let html = "<p>&nbsp;Prilis zlutoucky kun</p>"
+    let htmlResult = try await pipeline(sloppy).run(ClipboardInput(text: html))
+    #expect(htmlResult.correctedText == html)
+}
