@@ -33,7 +33,7 @@ clean:
 APP := build/Czechator.app
 BIN := $(APP)/Contents/MacOS/CzechatorApp
 
-.PHONY: app install icon
+.PHONY: app install install-cli icon
 
 ICONSET_SRC := img/exports/AppIcon.appiconset
 
@@ -68,7 +68,21 @@ app: icon
 	codesign --force --sign - --timestamp=none $(APP)
 	@echo "hotovo: $(APP)"
 
-install: app
+# Defaults to a user-owned directory, so installing never needs sudo.
+# Override with: make install BINDIR=/usr/local/bin
+BINDIR ?= $(HOME)/.local/bin
+
+install: app install-cli
 	rm -rf /Applications/Czechator.app
 	cp -R $(APP) /Applications/Czechator.app
 	@echo "nainstalovano do /Applications/Czechator.app"
+
+install-cli:
+	swift build -c release --product czechator
+	@mkdir -p $(BINDIR)
+	cp .build/release/czechator $(BINDIR)/czechator
+	@echo "nainstalovano do $(BINDIR)/czechator"
+	@case ":$$PATH:" in \
+	  *":$(BINDIR):"*) ;; \
+	  *) echo "POZOR: $(BINDIR) neni v PATH, prikaz czechator nepujde spustit" ;; \
+	esac

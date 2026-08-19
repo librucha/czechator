@@ -79,7 +79,7 @@ git clone <repository-url> czechator
 cd czechator
 
 ollama pull qwen3:4b-instruct     # ~2.5 GB
-make install                      # builds and copies to /Applications
+make install                      # app to /Applications, CLI to ~/.local/bin
 ```
 
 Then open `/Applications/Czechator.app`. It has no Dock icon — look for it in
@@ -90,9 +90,11 @@ Copy some Czech text without diacritics, press `Cmd+Ctrl+D`, and paste.
 ### Just the CLI
 
 ```bash
-swift build -c release
-cp .build/release/czechator /usr/local/bin/
+make install-cli                       # to ~/.local/bin
+make install-cli BINDIR=/usr/local/bin # somewhere else (may need sudo)
 ```
+
+`make install-cli` warns if the target directory is not on your `PATH`.
 
 ### Building without installing
 
