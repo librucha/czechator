@@ -208,7 +208,10 @@ public struct Pipeline: Sendable {
         let subset = indices.map { segments[$0] }
 
         for batch in SegmentBatcher.batches(subset, maxChars: limits.maxBatchChars) {
-            let items = batch.map { subset[$0].text }
+            // Fragile whitespace is hidden from the model and restored by
+            // position afterwards; see FragileWhitespace.
+            let masks = batch.map { FragileWhitespace.mask(subset[$0].text) }
+            let items = masks.map(\.masked)
             let prompt = PromptBuilder.build(items: items, systemOverride: promptOverride)
 
             let answer: String
@@ -238,8 +241,9 @@ public struct Pipeline: Sendable {
 
             for (offset, positionInSubset) in batch.enumerated() {
                 let target = indices[positionInSubset]
+                let restored = masks[offset].restore(into: decoded[offset])
                 let aligned = Self.alignEdgeWhitespace(
-                    decoded[offset], like: segments[target].text)
+                    restored, like: segments[target].text)
                 corrections[target] = aligned
                 cache[segments[target].text] = aligned
             }

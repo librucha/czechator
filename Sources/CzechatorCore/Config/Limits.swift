@@ -18,5 +18,11 @@ public struct Limits: Sendable, Codable, Equatable {
         maxBatchChars =
             try container.decodeIfPresent(Int.self, forKey: .maxBatchChars)
             ?? defaults.maxBatchChars
+
+        // A hand-edited config can hold nonsense: 0 batch chars would mean one
+        // HTTP request per segment, 0 input bytes would kill the tool without
+        // explaining why.
+        maxInputBytes = Swift.max(maxInputBytes, 1)
+        maxBatchChars = Swift.max(maxBatchChars, 1)
     }
 }

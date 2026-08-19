@@ -7,16 +7,11 @@ struct PasteboardSink: OutputSink {
 
     func write(_ result: PipelineResult) throws {
         let pasteboard = NSPasteboard.general
-        // clearContents() drops every representation, so writing back only the
-        // plain flavour of an HTML clipboard would lose the formatting on paste.
+        // clearContents() drops every representation, so everything the
+        // clipboard should keep has to be written back explicitly.
         pasteboard.clearContents()
-        if result.formatID == HTMLHandler.id {
-            pasteboard.setString(result.correctedText, forType: .html)
-            if let plain = result.correctedPlainText {
-                pasteboard.setString(plain, forType: .string)
-            }
-        } else {
-            pasteboard.setString(result.correctedText, forType: .string)
+        for entry in ClipboardWritePlan.entries(for: result) {
+            pasteboard.setString(entry.value, forType: .init(entry.uti))
         }
     }
 }

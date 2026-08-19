@@ -56,10 +56,16 @@ public enum NumberedList {
         for character in s {
             switch character {
             case "\\": out += "\\\\"
-            case "\n": out += "\\n"
-            case "\r": out += "\\r"
             case "\t": out += "\\t"
-            default: out.append(character)
+            default:
+                // CRLF is a single grapheme equal to neither "\n" nor "\r";
+                // matching on those alone let a real line break into the wire
+                // format and broke the numbered list.
+                if character.isNewline {
+                    out += character == "\r\n" ? "\\r\\n" : (character == "\r" ? "\\r" : "\\n")
+                } else {
+                    out.append(character)
+                }
             }
         }
         return out
@@ -77,6 +83,17 @@ public enum NumberedList {
                 continue
             }
             let next = s[s.index(after: index)]
+            if next == "u" {
+                let hexStart = s.index(index, offsetBy: 2)
+                if let hexEnd = s.index(hexStart, offsetBy: 4, limitedBy: s.endIndex),
+                    let value = UInt32(s[hexStart..<hexEnd], radix: 16),
+                    let scalar = UnicodeScalar(value)
+                {
+                    out.append(Character(scalar))
+                    index = hexEnd
+                    continue
+                }
+            }
             switch next {
             case "n": out.append("\n")
             case "r": out.append("\r")

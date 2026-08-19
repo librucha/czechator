@@ -5,10 +5,15 @@ import Foundation
 public struct JSONEscapeStyle: Sendable, Equatable {
     public var unicodeEscapes: Bool
     public var escapedSolidus: Bool
+    /// Documents written with `\u00E9` must not come back as `\u00e9`; the
+    /// document would no longer reassemble byte-for-byte and every correction
+    /// touching such a value would be refused.
+    public var uppercaseHex: Bool
 
-    public init(unicodeEscapes: Bool, escapedSolidus: Bool) {
+    public init(unicodeEscapes: Bool, escapedSolidus: Bool, uppercaseHex: Bool = false) {
         self.unicodeEscapes = unicodeEscapes
         self.escapedSolidus = escapedSolidus
+        self.uppercaseHex = uppercaseHex
     }
 
     /// Walks the escape sequences instead of substring-matching them.
@@ -20,6 +25,7 @@ public struct JSONEscapeStyle: Sendable, Equatable {
     public static func detect(in raw: String) -> JSONEscapeStyle {
         var unicodeEscapes = false
         var escapedSolidus = false
+        var uppercaseHex = false
         var index = raw.startIndex
 
         while index < raw.endIndex {
@@ -30,7 +36,14 @@ public struct JSONEscapeStyle: Sendable, Equatable {
             let next = raw.index(after: index)
             guard next < raw.endIndex else { break }
             switch raw[next] {
-            case "u": unicodeEscapes = true
+            case "u":
+                unicodeEscapes = true
+                let hexStart = raw.index(after: next)
+                if let hexEnd = raw.index(hexStart, offsetBy: 4, limitedBy: raw.endIndex),
+                    raw[hexStart..<hexEnd].contains(where: { $0.isUppercase })
+                {
+                    uppercaseHex = true
+                }
             case "/": escapedSolidus = true
             default: break
             }
@@ -38,7 +51,9 @@ public struct JSONEscapeStyle: Sendable, Equatable {
             // mistaken for the start of the next escape.
             index = raw.index(after: next)
         }
-        return JSONEscapeStyle(unicodeEscapes: unicodeEscapes, escapedSolidus: escapedSolidus)
+        return JSONEscapeStyle(
+            unicodeEscapes: unicodeEscapes, escapedSolidus: escapedSolidus,
+            uppercaseHex: uppercaseHex)
     }
 }
 
@@ -128,11 +143,12 @@ public enum JSONEscaping {
             case "\u{0C}": out += "\\f"
             case "/": out += style.escapedSolidus ? "\\/" : "/"
             default:
+                let hex = style.uppercaseHex ? "\\u%04X" : "\\u%04x"
                 if scalar.value < 0x20 {
-                    out += String(format: "\\u%04x", scalar.value)
+                    out += String(format: hex, scalar.value)
                 } else if style.unicodeEscapes, scalar.value > 0x7F {
                     for unit in String(scalar).utf16 {
-                        out += String(format: "\\u%04x", unit)
+                        out += String(format: hex, unit)
                     }
                 } else {
                     out.unicodeScalars.append(scalar)

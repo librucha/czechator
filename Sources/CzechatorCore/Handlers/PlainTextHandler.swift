@@ -21,7 +21,10 @@ public struct PlainTextHandler: FormatHandler {
         var index = text.startIndex
 
         while index < text.endIndex {
-            if text[index] == "\n" {
+            // `isNewline`, not `== "\n"`: Swift treats CRLF as a single
+            // grapheme that equals neither "\n" nor "\r", so a Windows
+            // document would otherwise come out as one giant candidate.
+            if text[index].isNewline {
                 result += prepared.build(candidate: lineStart..<index, kind: .plain) { String($0) }
                 lineStart = text.index(after: index)
             }

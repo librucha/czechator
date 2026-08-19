@@ -50,7 +50,10 @@ public enum JSONScanner {
         mutating func advance() { index = text.index(after: index) }
 
         mutating func skipWhitespace() {
-            while let c = current, c == " " || c == "\n" || c == "\r" || c == "\t" { advance() }
+            // Character-based, so the CRLF grapheme is consumed too. Missing it
+            // meant a Windows JSON file failed to scan and fell through to the
+            // plain handler, where its keys and braces become correctable text.
+            while let c = current, c.isWhitespace { advance() }
         }
 
         mutating func expect(_ character: Character) throws {
@@ -160,7 +163,9 @@ public enum JSONScanner {
         mutating func parseBareLiteral() throws {
             let start = index
             let startOffset = offset
-            while let character = current, !",]} \n\r\t".contains(character) { advance() }
+            while let character = current,
+                character != ",", character != "]", character != "}", !character.isWhitespace
+            { advance() }
             guard index > start else { throw JSONScanError.unexpectedCharacter(offset: offset) }
 
             let token = text[start..<index]

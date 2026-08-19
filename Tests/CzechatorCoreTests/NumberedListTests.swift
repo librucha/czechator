@@ -69,3 +69,45 @@ import Testing
         try NumberedList.decode("Zde je opraveny seznam:\n1. prvni\n2. druhy", expectedCount: 2)
             == ["prvni", "druhy"])
 }
+
+@Test func escapesCRLFAsTwoEscapes() {
+    // CRLF is one grapheme; matching only "\n"/"\r" let a real line break into
+    // the wire format and broke the numbered list.
+    #expect(NumberedList.encode(["a\r\nb"]) == "1. a\\r\\nb")
+    #expect(try! NumberedList.decode("1. a\\r\\nb", expectedCount: 1) == ["a\r\nb"])
+}
+
+@Test func maskingHidesWhitespaceTheModelWouldMangle() {
+    let text = "Skoleni v\u{00A0}utery, cena 1\u{00A0}500 Kc"
+    let mask = FragileWhitespace.mask(text)
+    // Nothing exotic reaches the model.
+    #expect(!mask.masked.unicodeScalars.contains { $0.value == 0x00A0 })
+    #expect(mask.positions.count == 2)
+    // A correction of the same length gets its characters back.
+    #expect(mask.restore(into: mask.masked) == text)
+    #expect(
+        FragileWhitespace.mask("Skoleni v\u{00A0}utery")
+            .restore(into: "Školení v úterý") == "Školení v\u{00A0}úterý")
+}
+
+@Test func maskingGivesUpWhenTheModelChangedTheLength() {
+    let mask = FragileWhitespace.mask("a\u{00A0}b")
+    // Indices would be meaningless; the verifier rejects it instead.
+    #expect(mask.restore(into: "a b navic") == "a b navic")
+}
+
+@Test func crlfRoundTripsThroughAPlainTextDocument() throws {
+    let text = "Prvni radek textu.\r\nDruhy radek textu."
+    let segments = try PlainTextHandler(rules: .builtIn).segments(in: text)
+    #expect(segments.map(\.text) == ["Prvni radek textu.", "Druhy radek textu."])
+    let rebuilt = try Reassembler.splice(
+        text, segments: segments, replacements: segments.map(\.raw))
+    #expect(rebuilt == text)
+}
+
+@Test func windowsJSONIsStillDetectedAsJSON() throws {
+    let text = "{\r\n  \"nazev\": \"Prilis zlutoucky kun\"\r\n}"
+    #expect(JSONHandler.confidence(for: ClipboardInput(text: text)) == 0.9)
+    #expect(try JSONHandler(rules: .builtIn).segments(in: text).map(\.text)
+        == ["Prilis zlutoucky kun"])
+}

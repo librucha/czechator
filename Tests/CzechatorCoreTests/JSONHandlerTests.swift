@@ -116,3 +116,17 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
     #expect(JSONHandler.confidence(for: ClipboardInput(text: #"{"a": }"#)) == 0)
     #expect(JSONHandler.id == "json")
 }
+
+@Test func preservesTheLetterCaseOfHexEscapes() {
+    let upper = #"velke \u00E9 escapy"#
+    let lower = #"mala \u00e9 escapy"#
+
+    #expect(JSONEscapeStyle.detect(in: upper).uppercaseHex)
+    #expect(!JSONEscapeStyle.detect(in: lower).uppercaseHex)
+
+    for raw in [upper, lower] {
+        let style = JSONEscapeStyle.detect(in: raw)
+        let round = JSONEscaping.escape(JSONEscaping.unescape(raw[...]), style: style)
+        #expect(round == raw, "round trip failed")
+    }
+}

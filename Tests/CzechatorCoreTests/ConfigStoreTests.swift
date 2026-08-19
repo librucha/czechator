@@ -149,3 +149,10 @@ private func write(_ yaml: String, to url: URL) throws {
     try write("activeProfile: local\nprofiles: {}\n", to: url)
     #expect(throws: ConfigError.unknownActiveProfile("local")) { try store.load() }
 }
+
+@Test func clampsNonsensicalLimits() throws {
+    let json = Data(#"{"maxInputBytes":0,"maxBatchChars":0}"#.utf8)
+    let limits = try JSONDecoder().decode(Limits.self, from: json)
+    #expect(limits.maxInputBytes >= 1)
+    #expect(limits.maxBatchChars >= 1)
+}
