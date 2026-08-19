@@ -324,6 +324,12 @@ places, notably how JSON escapes and HTML entities are tracked (by grapheme
 position rather than by flag) and everything around whitespace and letter case,
 none of which the design anticipated.
 
+## Versioning
+
+The version lives in one place, `Sources/CzechatorCore/Version.swift`. The
+Makefile stamps it into the bundle's `Info.plist` at build time, so the app, the
+CLI (`czechator --version`) and the About panel can never disagree.
+
 ## Contributing
 
 Issues and pull requests are welcome. Two things to know before you open one:

@@ -30,6 +30,9 @@ fmt:
 clean:
 	rm -rf .build build
 
+# Single source of truth lives in Swift; the plist is stamped from it.
+VERSION := $(shell sed -n 's/.*let version = "\(.*\)".*/\1/p' Sources/CzechatorCore/Version.swift)
+
 APP := build/Czechator.app
 BIN := $(APP)/Contents/MacOS/CzechatorApp
 
@@ -60,13 +63,15 @@ app: icon
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
 	cp .build/release/CzechatorApp $(BIN)
 	cp Resources/Info.plist $(APP)/Contents/Info.plist
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" \
+	  $(APP)/Contents/Info.plist
 	@if [ -f build/Czechator.icns ]; then \
 	  cp build/Czechator.icns $(APP)/Contents/Resources/Czechator.icns; \
 	  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string Czechator" \
 	    $(APP)/Contents/Info.plist >/dev/null 2>&1 || true; \
 	fi
 	codesign --force --sign - --timestamp=none $(APP)
-	@echo "hotovo: $(APP)"
+	@echo "hotovo: $(APP) (verze $(VERSION))"
 
 # Defaults to a user-owned directory, so installing never needs sudo.
 # Override with: make install BINDIR=/usr/local/bin

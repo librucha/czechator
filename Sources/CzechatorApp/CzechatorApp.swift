@@ -34,6 +34,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// The standard AppKit panel, not a SwiftUI scene.
+///
+/// Verified in an accessory bundle on macOS 26: this one really does create a
+/// visible window, unlike the Settings scene. It reads the name, version and
+/// copyright straight from Info.plist, which the Makefile stamps from
+/// `Czechator.version`.
+@MainActor
+private func showAbout() {
+    NSApplication.shared.activate(ignoringOtherApps: true)
+    NSApplication.shared.orderFrontStandardAboutPanel(
+        options: [
+            .credits: NSAttributedString(
+                string: "Doplňuje českou diakritiku do obsahu schránky.\n"
+                    + "github.com/librucha/czechator",
+                attributes: [.font: NSFont.systemFont(ofSize: 11)])
+        ])
+}
+
 struct MenuContent: View {
 
     @ObservedObject var model: AppModel
@@ -66,6 +84,7 @@ struct MenuContent: View {
             }
 
             Divider()
+            Button("O aplikaci Czechator") { showAbout() }
             Button("Nastavení…") {
                 openWindow(id: CzechatorApp.settingsWindowID)
                 // An accessory app is never frontmost, so without this the
