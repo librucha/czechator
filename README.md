@@ -316,7 +316,11 @@ The central design decision: **handlers report ranges, they never serialize.**
 those ranges from the original string. Everything outside them is untouched by
 construction rather than by care.
 
-Design notes and the implementation plan are in `docs/superpowers/`.
+`docs/` holds the original design note and implementation plan. They are a
+historical record: the implementation moved on from them in several places —
+notably how JSON escapes and HTML entities are tracked (by grapheme position
+rather than by flag), and everything around whitespace and letter case, none of
+which the design anticipated. Each file says so at the top.
 
 ## Contributing
 

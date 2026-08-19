@@ -1,5 +1,25 @@
 # Czechator — návrh
 
+> **Historický dokument.** Zachycuje návrh, jak vypadal *před* implementací.
+> Kód se od něj během vývoje na několika místech vědomě odchýlil — každou
+> odchylku vysvětluje příslušný commit. Autoritou je kód, ne tento text.
+>
+> Nejpodstatnější věci, které v návrhu nejsou a v kódu ano:
+>
+> - `FragileWhitespace` — model přepisuje nezalomitelnou mezeru na jiný znak,
+>   takže se křehké znaky před odesláním maskují a po opravě vracejí podle pozic
+> - `LetterCasePolicy` — konfigurovatelná strategie velikosti písmen
+> - `Pipeline.alignEdgeWhitespace` a `alignCase` — deterministické srovnání toho,
+>   co model mění nad rámec diakritiky
+> - `PipelineError.unparsableStructure` — struktura, kterou parser odmítne, se
+>   neopravuje jako próza, protože by se přejmenovaly klíče
+> - `ClipboardWritePlan` — rozhodnutí, které reprezentace zapsat do schránky
+> - `PipelineObserver` — podklad pro `czechator fix --debug`
+> - `ProviderFailure` — chyba modelu jako kategorie, aby do notifikace neunikl
+>   obsah schránky ani API klíč
+>
+> Escapování JSONu i entit se navíc přepsalo z příznaků na indexy podle grafémů.
+
 Datum: 2026-08-19
 Stav: schváleno, připraveno k rozpracování do implementačního plánu
 
