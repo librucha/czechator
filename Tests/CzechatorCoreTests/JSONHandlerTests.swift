@@ -55,6 +55,37 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
     }
 }
 
+@Test func escapeStyleIsNotFooledByEscapedBackslashes() throws {
+    // "a\\/b" — the escaped backslash must not be read as an escaped solidus,
+    // and "C:\\uzivatel" must not be read as using \u escapes.
+    let raws = [#"a\\/b"#, #"C:\\uzivatel\\slozka aábc"#, #"konec radku \\n neni novy radek"#]
+    for raw in raws {
+        let style = JSONEscapeStyle.detect(in: raw)
+        let round = JSONEscaping.escape(JSONEscaping.unescape(raw[...]), style: style)
+        #expect(round == raw, "round trip failed for \(raw)")
+    }
+    #expect(JSONEscapeStyle.detect(in: #"a\\/b"#).escapedSolidus == false)
+    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).unicodeEscapes == false)
+    #expect(JSONEscapeStyle.detect(in: #"opravdu \/ escapovane"#).escapedSolidus == true)
+    #expect(JSONEscapeStyle.detect(in: #"opravdu \u00e1 escapovane"#).unicodeEscapes == true)
+}
+
+@Test func scannerRejectsTextThatOnlyLooksLikeJSON() {
+    #expect(throws: (any Error).self) { try JSONScanner.scan(#"{"a": undefinedGarbage}"#) }
+    #expect(throws: (any Error).self) { try JSONScanner.scan(#"{"a": "\q"}"#) }
+    #expect(throws: (any Error).self) { try JSONScanner.scan(#"{"a": 1.2.3.4}"#) }
+    #expect(throws: (any Error).self) { try JSONScanner.scan(#"{"a": 0x10}"#) }
+    #expect(throws: (any Error).self) { try JSONScanner.scan(#"{"a": "\u12"}"#) }
+    #expect(JSONHandler.confidence(for: ClipboardInput(text: #"{"a": undefinedGarbage}"#)) == 0)
+}
+
+@Test func scannerAcceptsEveryValidJSONNumberShape() throws {
+    let valid = ["0", "-0", "12", "-3.5", "1e10", "2E+3", "7.25e-4"]
+    for number in valid {
+        #expect(throws: Never.self) { try JSONScanner.scan("{\"a\": \(number)}") }
+    }
+}
+
 @Test func jsonSpliceWithRawReproducesOriginalExactly() throws {
     let text = #"""
         {

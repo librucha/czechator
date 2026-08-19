@@ -11,10 +11,34 @@ public struct JSONEscapeStyle: Sendable, Equatable {
         self.escapedSolidus = escapedSolidus
     }
 
+    /// Walks the escape sequences instead of substring-matching them.
+    ///
+    /// A naive `contains("\\u")` fires on an escaped backslash that happens to
+    /// precede a literal `u` — `C:\\uzivatel` would be read as using \u escapes,
+    /// and every non-ASCII character in that value would come back re-encoded.
+    /// That changes bytes outside the corrected text, which the tool must never do.
     public static func detect(in raw: String) -> JSONEscapeStyle {
-        JSONEscapeStyle(
-            unicodeEscapes: raw.contains("\\u"),
-            escapedSolidus: raw.contains("\\/"))
+        var unicodeEscapes = false
+        var escapedSolidus = false
+        var index = raw.startIndex
+
+        while index < raw.endIndex {
+            guard raw[index] == "\\" else {
+                index = raw.index(after: index)
+                continue
+            }
+            let next = raw.index(after: index)
+            guard next < raw.endIndex else { break }
+            switch raw[next] {
+            case "u": unicodeEscapes = true
+            case "/": escapedSolidus = true
+            default: break
+            }
+            // Consume both characters, so an escaped backslash cannot be
+            // mistaken for the start of the next escape.
+            index = raw.index(after: next)
+        }
+        return JSONEscapeStyle(unicodeEscapes: unicodeEscapes, escapedSolidus: escapedSolidus)
     }
 }
 

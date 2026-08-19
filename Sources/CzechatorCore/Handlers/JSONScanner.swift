@@ -126,8 +126,23 @@ public enum JSONScanner {
                 }
                 if character == "\\" {
                     advance()
-                    guard !isAtEnd else { throw JSONScanError.unterminatedString(offset: offset) }
-                    advance()
+                    guard let escape = current else {
+                        throw JSONScanError.unterminatedString(offset: offset)
+                    }
+                    switch escape {
+                    case "\"", "\\", "/", "b", "f", "n", "r", "t":
+                        advance()
+                    case "u":
+                        advance()
+                        for _ in 0..<4 {
+                            guard let digit = current, digit.isHexDigit else {
+                                throw JSONScanError.unexpectedCharacter(offset: offset)
+                            }
+                            advance()
+                        }
+                    default:
+                        throw JSONScanError.unexpectedCharacter(offset: offset)
+                    }
                     continue
                 }
                 if character == "\"" { break }
@@ -140,11 +155,52 @@ public enum JSONScanner {
             return String(text[content])
         }
 
-        /// Numbers, true, false, null — not segmented, only skipped over.
+        /// Numbers, true, false, null — not segmented, but still validated, so
+        /// text that merely looks like JSON does not win the format auction.
         mutating func parseBareLiteral() throws {
             let start = index
+            let startOffset = offset
             while let character = current, !",]} \n\r\t".contains(character) { advance() }
             guard index > start else { throw JSONScanError.unexpectedCharacter(offset: offset) }
+
+            let token = text[start..<index]
+            guard token == "true" || token == "false" || token == "null"
+                || Parser.isJSONNumber(token)
+            else {
+                throw JSONScanError.unexpectedCharacter(offset: startOffset)
+            }
+        }
+
+        /// JSON number grammar: `-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?`.
+        /// Deliberately not `Double(token)`, which also accepts hex floats,
+        /// `infinity` and `nan`.
+        static func isJSONNumber(_ token: Substring) -> Bool {
+            var rest = Substring(token)
+            if rest.hasPrefix("-") { rest = rest.dropFirst() }
+
+            guard let first = rest.first, first.isNumber else { return false }
+            if first == "0" {
+                rest = rest.dropFirst()
+            } else {
+                rest = rest.drop { $0.isNumber }
+            }
+
+            if rest.hasPrefix(".") {
+                rest = rest.dropFirst()
+                let digits = rest.prefix { $0.isNumber }
+                guard !digits.isEmpty else { return false }
+                rest = rest.dropFirst(digits.count)
+            }
+
+            if rest.hasPrefix("e") || rest.hasPrefix("E") {
+                rest = rest.dropFirst()
+                if rest.hasPrefix("+") || rest.hasPrefix("-") { rest = rest.dropFirst() }
+                let digits = rest.prefix { $0.isNumber }
+                guard !digits.isEmpty else { return false }
+                rest = rest.dropFirst(digits.count)
+            }
+
+            return rest.isEmpty
         }
     }
 }
