@@ -70,3 +70,26 @@ private func xmlHandler() throws -> XMLHandler { try XMLHandler(rules: .builtIn)
     #expect(XMLHandler.confidence(for: ClipboardInput(text: "2 < 3")) == 0)
     #expect(XMLHandler.id == "xml")
 }
+
+@Test func escapeDistinguishesBareAndEscapedOccurrencesOfTheSameCharacter() {
+    // A per-character style map would learn that "&" is spelled "&amp;" and
+    // re-escape the bare one too, changing bytes the model never touched.
+    let raws = [
+        "a & b &amp; c",
+        "Q&A &amp; more",
+        "mix &#160; a &nbsp; dohromady",
+        "&amp;amp; dvojite",
+    ]
+    for raw in raws {
+        let style = MarkupEntityStyle.detect(in: raw, table: MarkupEntities.htmlTable)
+        let round = MarkupEntities.escape(
+            MarkupEntities.unescape(raw[...], table: MarkupEntities.htmlTable), style: style)
+        #expect(round == raw, "round trip failed for \(raw)")
+    }
+}
+
+@Test func escapeReplaysSpellingsAtTheRightPositions() {
+    let raw = "a &amp; b"
+    let style = MarkupEntityStyle.detect(in: raw, table: MarkupEntities.xmlTable)
+    #expect(style.spellings == [2: "&amp;"])
+}
