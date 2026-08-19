@@ -227,3 +227,64 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
         try await pipeline(FakeProvider(transform: restore)).run(ClipboardInput(text: jsonc))
     }
 }
+
+@Test func forcesTheOriginalLetterCaseBackOntoTheCorrection() {
+    // The model capitalizes sentence starts whatever the prompt says.
+    #expect(
+        Pipeline.alignCase("Proč se to muselo dodělat", like: "proc se to muselo dodelat")
+            == "proč se to muselo dodělat")
+    // And the mirror case: a genuinely capitalized start must stay capitalized.
+    #expect(Pipeline.alignCase("příliš žluťoučký", like: "Prilis zlutoucky") == "Příliš žluťoučký")
+    #expect(Pipeline.alignCase("praha a brno", like: "Praha a Brno") == "Praha a Brno")
+    // A different word is left alone; the verifier deals with it.
+    #expect(Pipeline.alignCase("Uplne jine", like: "proc se to") == "Uplne jine")
+    // A length change disables it, same as the other normalizations.
+    #expect(Pipeline.alignCase("Proč navic", like: "proc") == "Proč navic")
+}
+
+@Test func acceptsACorrectionTheModelCapitalized() async throws {
+    let shouty = FakeProvider { $0.map { $0.prefix(1).uppercased() + $0.dropFirst() } }
+    let result = try await pipeline(shouty).run(ClipboardInput(text: "proc se to stalo"))
+    #expect(result.correctedText == "proc se to stalo")
+}
+
+@Test func letterCasePolicyDecidesWhatTheModelMayCapitalize() {
+    let original = "proc se to stalo v praze"
+    let shouty = "Proč se to stalo v Praze"
+
+    // preserve: everything goes back to the original case.
+    #expect(
+        Pipeline.alignCase(shouty, like: original, policy: .preserve)
+            == "proč se to stalo v praze")
+    // segmentStart: only the first letter keeps the model's choice.
+    #expect(
+        Pipeline.alignCase(shouty, like: original, policy: .segmentStart)
+            == "Proč se to stalo v praze")
+    // model: untouched.
+    #expect(Pipeline.alignCase(shouty, like: original, policy: .model) == shouty)
+}
+
+@Test func verificationFollowsTheSamePolicy() {
+    let segments = [Segment(range: "x".startIndex..<"x".endIndex, raw: "x", text: "proc", kind: .plain)]
+    func failing(_ policy: LetterCasePolicy) -> [Int] {
+        DiacriticVerifier.failingIndices(
+            segments: segments, corrections: ["Proč"], policy: policy)
+    }
+    #expect(failing(.preserve) == [0])
+    #expect(failing(.segmentStart).isEmpty)
+    #expect(failing(.model).isEmpty)
+    // A word swap is refused under every policy.
+    #expect(
+        !DiacriticVerifier.failingIndices(
+            segments: segments, corrections: ["Jinak"], policy: .model
+        ).isEmpty)
+}
+
+@Test func segmentStartPolicyAcceptsACapitalizedSentence() async throws {
+    let shouty = FakeProvider { $0.map { $0.prefix(1).uppercased() + $0.dropFirst() } }
+    let pipeline = Pipeline(
+        registry: try FormatRegistry(rules: .builtIn), provider: shouty,
+        limits: .builtIn, promptOverride: nil, letterCase: .segmentStart)
+    let result = try await pipeline.run(ClipboardInput(text: "proc se to stalo"))
+    #expect(result.correctedText == "Proc se to stalo")
+}

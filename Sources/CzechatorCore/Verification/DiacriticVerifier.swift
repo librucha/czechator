@@ -7,18 +7,28 @@
 /// problem, not an architectural one.
 public enum DiacriticVerifier {
 
-    public static func documentMatches(original: String, corrected: String) -> Bool {
-        DiacriticFolding.fold(original) == DiacriticFolding.fold(corrected)
+    public static func documentMatches(
+        original: String, corrected: String,
+        policy: LetterCasePolicy = .preserve
+    ) -> Bool {
+        // The document check exists to catch reassembly mistakes, which never
+        // involve case. Once any case freedom is granted, it compares
+        // case-insensitively; the per-segment check above is the precise one.
+        let documentPolicy: LetterCasePolicy = policy == .preserve ? .preserve : .model
+        return documentPolicy.normalize(original) == documentPolicy.normalize(corrected)
     }
 
     /// Indices of segments whose correction changed something other than
     /// diacritics. Used to retry just the offenders instead of the whole batch.
-    public static func failingIndices(segments: [Segment], corrections: [String]) -> [Int] {
+    public static func failingIndices(
+        segments: [Segment], corrections: [String],
+        policy: LetterCasePolicy = .preserve
+    ) -> [Int] {
         guard segments.count == corrections.count else {
             return Array(segments.indices)
         }
         return segments.indices.filter {
-            !documentMatches(original: segments[$0].text, corrected: corrections[$0])
+            policy.normalize(segments[$0].text) != policy.normalize(corrections[$0])
         }
     }
 }

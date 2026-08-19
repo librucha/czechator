@@ -43,13 +43,17 @@ public struct FeatureFlags: Sendable, Codable, Equatable {
     public var preview: Bool
     public var history: Bool
     public var historySize: Int
+    /// preserve | segmentStart | model — see LetterCasePolicy.
+    public var letterCase: LetterCasePolicy
 
-    public static let builtIn = FeatureFlags(preview: false, history: true, historySize: 20)
+    public static let builtIn = FeatureFlags(
+        preview: false, history: true, historySize: 20, letterCase: .preserve)
 
-    public init(preview: Bool, history: Bool, historySize: Int) {
+    public init(preview: Bool, history: Bool, historySize: Int, letterCase: LetterCasePolicy) {
         self.preview = preview
         self.history = history
         self.historySize = historySize
+        self.letterCase = letterCase
     }
 
     public init(from decoder: any Decoder) throws {
@@ -59,6 +63,9 @@ public struct FeatureFlags: Sendable, Codable, Equatable {
         history = try container.decodeIfPresent(Bool.self, forKey: .history) ?? defaults.history
         historySize =
             try container.decodeIfPresent(Int.self, forKey: .historySize) ?? defaults.historySize
+        letterCase =
+            try container.decodeIfPresent(LetterCasePolicy.self, forKey: .letterCase)
+            ?? defaults.letterCase
     }
 }
 

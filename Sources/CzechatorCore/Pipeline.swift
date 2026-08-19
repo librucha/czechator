@@ -83,17 +83,20 @@ public struct Pipeline: Sendable {
     private let provider: any LLMProvider
     private let limits: Limits
     private let promptOverride: String?
+    private let letterCase: LetterCasePolicy
     private let observer: PipelineObserver?
 
     public init(
         registry: FormatRegistry, provider: any LLMProvider,
         limits: Limits, promptOverride: String?,
+        letterCase: LetterCasePolicy = .preserve,
         observer: PipelineObserver? = nil
     ) {
         self.registry = registry
         self.provider = provider
         self.limits = limits
         self.promptOverride = promptOverride
+        self.letterCase = letterCase
         self.observer = observer
     }
 
@@ -177,11 +180,12 @@ public struct Pipeline: Sendable {
         // Verification runs BEFORE escaping, on the unescaped pair. Handlers'
         // escape routines assume the correction preserves grapheme count; this
         // is the check that guarantees it, so the order must not be swapped.
-        let failing = DiacriticVerifier.failingIndices(segments: segments, corrections: corrections)
+        let failing = DiacriticVerifier.failingIndices(
+            segments: segments, corrections: corrections, policy: letterCase)
         if !failing.isEmpty {
             try await fill(&corrections, indices: failing, segments: segments, cache: &cache)
             let stillFailing = DiacriticVerifier.failingIndices(
-                segments: segments, corrections: corrections)
+                segments: segments, corrections: corrections, policy: letterCase)
             guard stillFailing.isEmpty else {
                 for index in stillFailing {
                     observer?.onRejected(segments[index].text, corrections[index])
@@ -197,7 +201,10 @@ public struct Pipeline: Sendable {
         }
         let output = try Reassembler.splice(
             text, segments: segments, replacements: replacements)
-        guard DiacriticVerifier.documentMatches(original: text, corrected: output) else {
+        guard
+            DiacriticVerifier.documentMatches(
+                original: text, corrected: output, policy: letterCase)
+        else {
             throw PipelineError.verificationFailed(failedSegments: 0)
         }
 
@@ -228,6 +235,47 @@ public struct Pipeline: Sendable {
         let trailing = original.reversed().prefix { $0.isWhitespace }.reversed()
         let core = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
         return String(leading) + core + String(trailing)
+    }
+
+    /// Forces the original's letter case back onto the correction.
+    ///
+    /// The model capitalizes sentence-initial words no matter how the prompt is
+    /// worded — `proc se to muselo…` comes back as `Proc se to muselo…` — and
+    /// the verifier then refuses the whole document. Case is never something a
+    /// diacritic restoration may change, so it can simply be imposed rather than
+    /// asked for.
+    ///
+    /// Only a character that is the *same letter* is touched: the comparison
+    /// folds away both case and diacritics first. Anything else stays as the
+    /// model wrote it and still faces the verifier.
+    static func alignCase(
+        _ corrected: String, like original: String, policy: LetterCasePolicy = .preserve
+    ) -> String {
+        guard policy != .model, corrected.count == original.count else { return corrected }
+
+        var out = ""
+        out.reserveCapacity(corrected.count)
+        for (index, (source, candidate)) in zip(original, corrected).enumerated() {
+            if policy == .segmentStart, index == 0 {
+                out.append(candidate)
+                continue
+            }
+            let sameLetter =
+                DiacriticFolding.fold(String(source)).lowercased()
+                == DiacriticFolding.fold(String(candidate)).lowercased()
+            guard sameLetter, source.isLetter, candidate.isLetter else {
+                out.append(candidate)
+                continue
+            }
+            if source.isLowercase, candidate.isUppercase {
+                out += String(candidate).lowercased()
+            } else if source.isUppercase, candidate.isLowercase {
+                out += String(candidate).uppercased()
+            } else {
+                out.append(candidate)
+            }
+        }
+        return out
     }
 
     private func fill(
@@ -280,7 +328,9 @@ public struct Pipeline: Sendable {
                 // character on exactly the inputs the masking exists for.
                 let aligned = Self.alignEdgeWhitespace(
                     decoded[offset], like: masks[offset].masked)
-                let restored = masks[offset].restore(into: aligned)
+                let restored = Self.alignCase(
+                    masks[offset].restore(into: aligned), like: segments[target].text,
+                    policy: letterCase)
                 corrections[target] = restored
                 cache[segments[target].text] = restored
             }

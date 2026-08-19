@@ -110,7 +110,8 @@ final class AppModel: ObservableObject {
                     registry: try FormatRegistry(rules: config.segmentation),
                     provider: try makeProvider(profile),
                     limits: config.limits,
-                    promptOverride: config.prompt.override)
+                    promptOverride: config.prompt.override,
+                    letterCase: config.features.letterCase)
 
                 let result = try await pipeline.run(input)
                 // Only ever reached on success: a throw anywhere above leaves

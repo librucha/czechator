@@ -29,6 +29,7 @@ struct FixCommand: AsyncParsableCommand {
             provider: try environment.makeProvider(),
             limits: environment.config.limits,
             promptOverride: environment.config.prompt.override,
+            letterCase: environment.config.features.letterCase,
             observer: debug ? DebugReporter.observer() : nil)
 
         do {

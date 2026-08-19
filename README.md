@@ -203,7 +203,25 @@ segmentation:
 features:
   history: true
   historySize: 20
+  letterCase: preserve   # preserve | segmentStart | model
 ```
+
+### Letter case
+
+Capitalizing the first word of a sentence is good Czech, and small models do it
+whatever the prompt says. But case is not diacritics, and `fold(output) ==
+fold(input)` is what proves nothing else changed — so how much freedom the model
+gets is a choice:
+
+| `letterCase` | `proc se to stalo v praze` becomes | guarantee |
+|---|---|---|
+| `preserve` (default) | `proč se to stalo v praze` | intact — case is forced back |
+| `segmentStart` | `Proč se to stalo v praze` | only the first letter of a segment may change |
+| `model` | `Proč se to stalo v Praze` | given up — `PRAHA` may come back as `Praha` |
+
+A segment is a line of plain text, a JSON string value or one HTML text node —
+often a sentence, but not always one, which is why `segmentStart` is a rule about
+segments rather than about sentences.
 
 ### API keys
 
