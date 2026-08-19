@@ -1,3 +1,5 @@
+import Foundation
+
 /// Picks the handler with the highest confidence. Ties are broken by
 /// registration order, so `plain` — which always bids a constant 0.1 — only
 /// wins when nobody else claims the input.
@@ -32,6 +34,22 @@ public struct FormatRegistry: Sendable {
 
     public func handler(id: String) -> (any FormatHandler)? {
         entries.first { $0.id == id }?.handler
+    }
+
+    /// Text that opens like a structured document but that no structured
+    /// handler claimed.
+    ///
+    /// Falling back to plain text here is not safe: the plain handler would
+    /// treat `"nazev":` as correctable prose and the model would rename the key.
+    /// `fold` cannot catch that — `fold("název") == fold("nazev")` — so the
+    /// corruption would reach the clipboard silently. JSONC, a trailing comma,
+    /// NDJSON and a truncated fragment all land here.
+    public func looksStructuredButUnclaimed(_ input: ClipboardInput) -> Bool {
+        let trimmed = input.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{") || trimmed.hasPrefix("[") || trimmed.hasPrefix("<") else {
+            return false
+        }
+        return select(input).id == PlainTextHandler.id
     }
 
     public func select(_ input: ClipboardInput) -> (id: String, handler: any FormatHandler) {

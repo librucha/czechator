@@ -2,58 +2,56 @@ import Foundation
 
 /// Which optional escapes the source document used. Preserved so that an
 /// unchanged segment escapes back to exactly the bytes it came from.
+/// Which optional escape the source used, recorded **per position** in the
+/// unescaped text.
+///
+/// A per-flag style could not round trip a document that writes Czech letters
+/// as `\u00e9` — the escape and the character are different byte sequences, so
+/// `fold` sees them as different and the document check refuses every
+/// correction. Python's `json.dumps` escapes non-ASCII by default, so that is
+/// most machine-written JSON. Recording positions lets an escaped character stay
+/// escaped while a newly accented one is written plainly, exactly as
+/// `MarkupEntityStyle` does for entities.
 public struct JSONEscapeStyle: Sendable, Equatable {
-    public var unicodeEscapes: Bool
+    /// Grapheme index in the unescaped text to the spelling the source used.
+    public var spellings: [Int: String]
     public var escapedSolidus: Bool
-    /// Documents written with `\u00E9` must not come back as `\u00e9`; the
-    /// document would no longer reassemble byte-for-byte and every correction
-    /// touching such a value would be refused.
-    public var uppercaseHex: Bool
 
-    public init(unicodeEscapes: Bool, escapedSolidus: Bool, uppercaseHex: Bool = false) {
-        self.unicodeEscapes = unicodeEscapes
+    public init(spellings: [Int: String], escapedSolidus: Bool) {
+        self.spellings = spellings
         self.escapedSolidus = escapedSolidus
-        self.uppercaseHex = uppercaseHex
     }
 
-    /// Walks the escape sequences instead of substring-matching them.
-    ///
-    /// A naive `contains("\\u")` fires on an escaped backslash that happens to
-    /// precede a literal `u` — `C:\\uzivatel` would be read as using \u escapes,
-    /// and every non-ASCII character in that value would come back re-encoded.
-    /// That changes bytes outside the corrected text, which the tool must never do.
     public static func detect(in raw: String) -> JSONEscapeStyle {
-        var unicodeEscapes = false
+        var spellings: [Int: String] = [:]
         var escapedSolidus = false
-        var uppercaseHex = false
+        var outputIndex = 0
         var index = raw.startIndex
 
         while index < raw.endIndex {
             guard raw[index] == "\\" else {
+                outputIndex += 1
                 index = raw.index(after: index)
                 continue
             }
             let next = raw.index(after: index)
             guard next < raw.endIndex else { break }
-            switch raw[next] {
-            case "u":
-                unicodeEscapes = true
-                let hexStart = raw.index(after: next)
-                if let hexEnd = raw.index(hexStart, offsetBy: 4, limitedBy: raw.endIndex),
-                    raw[hexStart..<hexEnd].contains(where: { $0.isUppercase })
-                {
-                    uppercaseHex = true
-                }
-            case "/": escapedSolidus = true
-            default: break
+
+            if raw[next] == "u",
+                let hexEnd = raw.index(next, offsetBy: 5, limitedBy: raw.endIndex)
+            {
+                spellings[outputIndex] = String(raw[index..<hexEnd])
+                outputIndex += 1
+                index = hexEnd
+                continue
             }
+            if raw[next] == "/" { escapedSolidus = true }
             // Consume both characters, so an escaped backslash cannot be
             // mistaken for the start of the next escape.
+            outputIndex += 1
             index = raw.index(after: next)
         }
-        return JSONEscapeStyle(
-            unicodeEscapes: unicodeEscapes, escapedSolidus: escapedSolidus,
-            uppercaseHex: uppercaseHex)
+        return JSONEscapeStyle(spellings: spellings, escapedSolidus: escapedSolidus)
     }
 }
 
@@ -132,26 +130,30 @@ public enum JSONEscaping {
     public static func escape(_ s: String, style: JSONEscapeStyle) -> String {
         var out = ""
         out.reserveCapacity(s.count)
-        for scalar in s.unicodeScalars {
-            switch scalar {
-            case "\"": out += "\\\""
-            case "\\": out += "\\\\"
-            case "\n": out += "\\n"
-            case "\t": out += "\\t"
-            case "\r": out += "\\r"
-            case "\u{08}": out += "\\b"
-            case "\u{0C}": out += "\\f"
-            case "/": out += style.escapedSolidus ? "\\/" : "/"
-            default:
-                let hex = style.uppercaseHex ? "\\u%04X" : "\\u%04x"
-                if scalar.value < 0x20 {
-                    out += String(format: hex, scalar.value)
-                } else if style.unicodeEscapes, scalar.value > 0x7F {
-                    for unit in String(scalar).utf16 {
-                        out += String(format: hex, unit)
+
+        for (index, character) in s.enumerated() {
+            // A character the source wrote as an escape keeps that spelling,
+            // byte for byte.
+            if let spelling = style.spellings[index] {
+                out += spelling
+                continue
+            }
+            for scalar in String(character).unicodeScalars {
+                switch scalar {
+                case "\"": out += "\\\""
+                case "\\": out += "\\\\"
+                case "\n": out += "\\n"
+                case "\t": out += "\\t"
+                case "\r": out += "\\r"
+                case "\u{08}": out += "\\b"
+                case "\u{0C}": out += "\\f"
+                case "/": out += style.escapedSolidus ? "\\/" : "/"
+                default:
+                    if scalar.value < 0x20 {
+                        out += String(format: "\\u%04x", scalar.value)
+                    } else {
+                        out.unicodeScalars.append(scalar)
                     }
-                } else {
-                    out.unicodeScalars.append(scalar)
                 }
             }
         }

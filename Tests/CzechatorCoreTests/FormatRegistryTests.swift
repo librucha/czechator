@@ -33,3 +33,30 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
     #expect(registry.handler(id: "json") != nil)
     #expect(registry.handler(id: "neexistuje") == nil)
 }
+
+@Test func flagsStructureThatNoHandlerCouldParse() throws {
+    let registry = try registry()
+    // JSONC, trailing comma, NDJSON and a truncated fragment all fall to the
+    // plain handler, where their keys would be corrected as if they were prose.
+    let structured = [
+        "{\n  // poznamka\n  \"nazev\": \"Prilis kun\"\n}",
+        #"{"prijmeni": "Novak", "mesto": "Ceske Budejovice", }"#,
+        #"{"a": 1}"# + "\n" + #"{"b": 2}"#,
+        #"{"nazev": "Prilis kun"#,
+    ]
+    for text in structured {
+        #expect(
+            registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+            "nezachyceno: \(text)")
+    }
+}
+
+@Test func doesNotFlagOrdinaryProseOrValidStructure() throws {
+    let registry = try registry()
+    #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: "obycejny text")))
+    #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: #"{"a": "b"}"#)))
+    #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: "<p>ahoj</p>")))
+    #expect(
+        !registry.looksStructuredButUnclaimed(
+            ClipboardInput(text: "<?xml version=\"1.0\"?><r>x</r>")))
+}

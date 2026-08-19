@@ -219,3 +219,11 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
     let htmlResult = try await pipeline(sloppy).run(ClipboardInput(text: html))
     #expect(htmlResult.correctedText == html)
 }
+
+@Test func refusesStructureThatDoesNotParse() async {
+    // Silently correcting these renamed JSON keys — verified corruption.
+    let jsonc = "{\n  // poznamka\n  \"nazev\": \"Prilis zlutoucky kun\"\n}"
+    await #expect(throws: PipelineError.unparsableStructure) {
+        try await pipeline(FakeProvider(transform: restore)).run(ClipboardInput(text: jsonc))
+    }
+}

@@ -19,7 +19,9 @@ public enum NumberedList {
     public static func decode(_ text: String, expectedCount: Int) throws -> [String] {
         var items: [String] = []
 
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        // Split on any newline grapheme, mirroring `escape`: a model answering
+        // with CRLF would otherwise come back as a single unparsable line.
+        for line in text.split(whereSeparator: \.isNewline) {
             // Only the structural wrapper is trimmed; the item body is not,
             // so the model cannot smuggle whitespace changes through.
             let structural = line.trimmingCharacters(in: .whitespaces)

@@ -98,7 +98,7 @@ cp .build/release/czechator /usr/local/bin/
 
 ```bash
 make build     # both targets
-make test      # 183 tests
+make test      # 187 tests
 make app       # build/Czechator.app
 ```
 
@@ -228,6 +228,13 @@ rebuild.
   fold identically, so picking the wrong one passes. That is a model-quality
   problem, and the reason the model matters.
 - **RTF-only clipboards** are reported as unsupported rather than mangled.
+- **Structure that does not parse is refused, not guessed.** JSON with comments
+  or a trailing comma, NDJSON, a truncated fragment — Czechator declines rather
+  than fall back to treating the document as prose, which would let the model
+  rename your keys. Verification cannot catch that on its own, because
+  `fold("název") == fold("nazev")`.
+- **CSV headers are not protected.** A CSV handler is not implemented, so a
+  header row is corrected like any other line.
 - **The clipboard is replaced silently.** There is no diff preview yet; the
   history in the menu bar is the undo.
 - **Distribution needs signing.** The build is ad-hoc signed, which is fine on

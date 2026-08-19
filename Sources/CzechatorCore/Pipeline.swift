@@ -36,6 +36,7 @@ public enum ProviderFailure: Sendable, Equatable {
 
 public enum PipelineError: Error, Equatable {
     case noText
+    case unparsableStructure
     case inputTooLarge(bytes: Int, limit: Int)
     case providerFailed(ProviderFailure)
     case verificationFailed(failedSegments: Int)
@@ -96,6 +97,12 @@ public struct Pipeline: Sendable {
         // merely folds the same — "byt" served from "být" — and the verifier
         // cannot catch that, because both fold identically.
         var cache: [String: String] = [:]
+
+        // Refusing beats guessing: a document that opens like structure but
+        // does not parse would have its keys corrected as if they were prose.
+        guard !registry.looksStructuredButUnclaimed(input) else {
+            throw PipelineError.unparsableStructure
+        }
 
         let selected = registry.select(input)
         let main = try await correct(input.text, handler: selected.handler, cache: &cache)
@@ -241,11 +248,15 @@ public struct Pipeline: Sendable {
 
             for (offset, positionInSubset) in batch.enumerated() {
                 let target = indices[positionInSubset]
-                let restored = masks[offset].restore(into: decoded[offset])
+                // Edge alignment first: the model appends trailing spaces, and
+                // restoring by position has to see a string of the original
+                // length or it gives up — which would drop every masked
+                // character on exactly the inputs the masking exists for.
                 let aligned = Self.alignEdgeWhitespace(
-                    restored, like: segments[target].text)
-                corrections[target] = aligned
-                cache[segments[target].text] = aligned
+                    decoded[offset], like: masks[offset].masked)
+                let restored = masks[offset].restore(into: aligned)
+                corrections[target] = restored
+                cache[segments[target].text] = restored
             }
         }
     }

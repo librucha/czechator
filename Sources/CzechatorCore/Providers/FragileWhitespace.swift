@@ -16,12 +16,17 @@ public struct FragileWhitespace: Sendable, Equatable {
     public static let characters: Set<Character> = [
         "\u{00A0}",  // no-break space
         "\u{202F}",  // narrow no-break space
-        "\u{2007}",  // figure space
-        "\u{2009}",  // thin space
+        "\u{2002}", "\u{2003}", "\u{2004}", "\u{2005}", "\u{2006}",
+        "\u{2007}", "\u{2008}", "\u{2009}", "\u{200A}",  // en/em/figure/thin spaces
+        "\u{3000}",  // ideographic space
         "\u{200B}",  // zero width space
+        "\u{2060}",  // word joiner
         "\u{00AD}",  // soft hyphen
+        "\u{2011}",  // non-breaking hyphen
         "\u{FEFF}",  // byte order mark
     ]
+    // U+200D (zero width joiner) is deliberately absent: masking it would tear
+    // emoji sequences apart.
 
     /// The text with every fragile character replaced by a plain space.
     public let masked: String

@@ -65,9 +65,9 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
         #expect(round == raw, "round trip failed for \(raw)")
     }
     #expect(JSONEscapeStyle.detect(in: #"a\\/b"#).escapedSolidus == false)
-    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).unicodeEscapes == false)
+    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).spellings.isEmpty)
     #expect(JSONEscapeStyle.detect(in: #"opravdu \/ escapovane"#).escapedSolidus == true)
-    #expect(JSONEscapeStyle.detect(in: #"opravdu \u00e1 escapovane"#).unicodeEscapes == true)
+    #expect(JSONEscapeStyle.detect(in: #"opravdu \u00e1 escapovane"#).spellings.count == 1)
 }
 
 @Test func scannerRejectsTextThatOnlyLooksLikeJSON() {
@@ -117,16 +117,26 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
     #expect(JSONHandler.id == "json")
 }
 
-@Test func preservesTheLetterCaseOfHexEscapes() {
-    let upper = #"velke \u00E9 escapy"#
-    let lower = #"mala \u00e9 escapy"#
+@Test func keepsEscapedCharactersEscapedAndNewOnesPlain() {
+    // Python's json.dumps escapes non-ASCII by default, so this is most
+    // machine-written JSON. A per-flag style made every such document refuse
+    // correction; a per-position one lets the escape survive untouched.
+    let raw = #"krasn\u00e9 misto"#
+    let style = JSONEscapeStyle.detect(in: raw)
+    #expect(style.spellings == [5: #"\u00e9"#])
 
-    #expect(JSONEscapeStyle.detect(in: upper).uppercaseHex)
-    #expect(!JSONEscapeStyle.detect(in: lower).uppercaseHex)
+    let unescaped = JSONEscaping.unescape(raw[...])
+    #expect(unescaped == "krasné misto")
+    #expect(JSONEscaping.escape(unescaped, style: style) == raw)
+    // The corrected text keeps the escape and writes new accents plainly.
+    #expect(JSONEscaping.escape("krásné místo", style: style) == #"krásn\u00e9 místo"#)
+}
 
-    for raw in [upper, lower] {
+@Test func escapedBackslashIsNotMistakenForAnEscape() {
+    for raw in [#"a\\/b"#, #"C:\\uzivatel"#, #"opravdu \/ escapovane"#] {
         let style = JSONEscapeStyle.detect(in: raw)
-        let round = JSONEscaping.escape(JSONEscaping.unescape(raw[...]), style: style)
-        #expect(round == raw, "round trip failed")
+        #expect(JSONEscaping.escape(JSONEscaping.unescape(raw[...]), style: style) == raw)
     }
+    #expect(JSONEscapeStyle.detect(in: #"a\\/b"#).escapedSolidus == false)
+    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).spellings.isEmpty)
 }
