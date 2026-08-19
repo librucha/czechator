@@ -191,3 +191,17 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
     ).run(ClipboardInput(text: text, uti: nil, plainText: text))
     #expect(result.correctedText == "Příliš žluťoučký kůň")
 }
+
+@Test func toleratesTrailingWhitespaceTheModelAddsToEveryLine() async throws {
+    // qwen3 appends two spaces to each line (Markdown hard break); without
+    // realignment the whole document would fail verification.
+    let sloppy = FakeProvider { $0.map { $0.replacingOccurrences(of: "Prilis", with: "Příliš") + "  " } }
+    let result = try await pipeline(sloppy).run(ClipboardInput(text: "Prilis zlutoucky kun"))
+    #expect(result.correctedText == "Příliš zlutoucky kun")
+}
+
+@Test func edgeWhitespaceComesFromTheOriginalNotTheModel() {
+    #expect(Pipeline.alignEdgeWhitespace("opraveno  ", like: "puvodni") == "opraveno")
+    #expect(Pipeline.alignEdgeWhitespace("opraveno", like: "puvodni\n") == "opraveno\n")
+    #expect(Pipeline.alignEdgeWhitespace("  opraveno  ", like: "\tpuvodni") == "\topraveno")
+}

@@ -174,6 +174,25 @@ public struct Pipeline: Sendable {
         return Corrected(text: output, segmentCount: segments.count, changedCount: changed)
     }
 
+    /// Restores the segment's own leading and trailing whitespace.
+    ///
+    /// Segments are whitespace-trimmed at their edges by construction, so any
+    /// edge whitespace the model returns is its own artifact — qwen3 appends two
+    /// spaces to every line, the Markdown hard-break convention, which the
+    /// verifier then rejects for the whole document. The one exception is
+    /// whitespace that unescaping produced (a trailing `\n` inside a JSON
+    /// string), which is why the original's edges are re-attached rather than
+    /// simply trimmed away.
+    ///
+    /// Only the edges are touched; every other difference still faces the
+    /// verifier unchanged.
+    static func alignEdgeWhitespace(_ corrected: String, like original: String) -> String {
+        let leading = original.prefix { $0.isWhitespace }
+        let trailing = original.reversed().prefix { $0.isWhitespace }.reversed()
+        let core = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(leading) + core + String(trailing)
+    }
+
     private func fill(
         _ corrections: inout [String],
         indices: [Int],
@@ -213,8 +232,10 @@ public struct Pipeline: Sendable {
 
             for (offset, positionInSubset) in batch.enumerated() {
                 let target = indices[positionInSubset]
-                corrections[target] = decoded[offset]
-                cache[segments[target].text] = decoded[offset]
+                let aligned = Self.alignEdgeWhitespace(
+                    decoded[offset], like: segments[target].text)
+                corrections[target] = aligned
+                cache[segments[target].text] = aligned
             }
         }
     }
