@@ -8,7 +8,20 @@ model, so they are slow and their result depends on which model is installed.
 swift build -c release
 Tools/quality.py qwen3:4b-instruct gemma3:4b
 Tools/quality.py --letter-case segmentStart qwen3:4b-instruct
+Tools/quality.py --color always qwen3:4b-instruct | less -R
 ```
+
+It ends with one row per model, coloured worst-to-best so a bad run is obvious
+without reading the numbers:
+
+```
+                    přesně                        přes verifikaci
+──────────────────────────────────────────────────────────────────
+qwen3:4b-instruct    15/23   65.2%  ████████░░░░   22/23   95.7%  ███████████░
+gemma3:4b            12/23   52.2%  ██████░░░░░░   15/23   65.2%  ████████░░░░
+```
+
+Colour is dropped when the output is not a terminal, and honours `NO_COLOR`.
 
 The fixtures are written for `letterCase: preserve`. Under a looser policy the
 model may legitimately change case, so `--letter-case` relaxes the comparison the

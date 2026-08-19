@@ -23,6 +23,7 @@ Usage:
 """
 
 import argparse
+import os
 import pathlib
 import shutil
 import subprocess
@@ -35,6 +36,64 @@ BINARY = ROOT / ".build" / "release" / "czechator"
 
 
 POLICIES = ("preserve", "segmentStart", "model")
+
+# Worst to best. A run that refuses half the documents should look alarming at a
+# glance; one that only misses a few accents should not.
+HEAT = (
+    (0.50, "\033[31m"),  # red
+    (0.70, "\033[38;5;208m"),  # orange
+    (0.85, "\033[33m"),  # yellow
+    (0.95, "\033[32m"),  # green
+    (1.01, "\033[92m"),  # bright green
+)
+RESET = "\033[0m"
+
+
+def colors_wanted(mode: str) -> bool:
+    # NO_COLOR is the de facto standard; "always" is for piping into `less -R`.
+    if mode == "never":
+        return False
+    if mode == "always":
+        return True
+    return sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+
+def heat(ratio: float, text: str, enabled: bool) -> str:
+    if not enabled:
+        return text
+    for threshold, code in HEAT:
+        if ratio < threshold:
+            return f"{code}{text}{RESET}"
+    return text
+
+
+def bar(ratio: float, width: int = 12) -> str:
+    filled = round(ratio * width)
+    return "█" * filled + "░" * (width - filled)
+
+
+# label ("999/999 100.0%") plus a space plus the bar
+CELL_WIDTH = 15 + 1 + 12
+
+
+def summary(rows: list[tuple[str, int, int, int]], policy: str, color: str) -> None:
+    """One row per model, so the table stays readable however many there are."""
+    if not rows:
+        return
+    enabled = colors_wanted(color)
+    name_width = max(len(name) for name, _, _, _ in rows)
+
+    print()
+    print(f"{'':<{name_width}}   {'přesně':<{CELL_WIDTH}}  {'přes verifikaci'}")
+    print("─" * (name_width + 3 + CELL_WIDTH * 2 + 2))
+    for name, exact, verified, total in rows:
+        cells = []
+        for value in (exact, verified):
+            ratio = value / total if total else 0.0
+            label = f"{value:>3}/{total:<3} {ratio * 100:5.1f}%"
+            cells.append(heat(ratio, f"{label:<15} {bar(ratio)}", enabled))
+        print(f"{name:<{name_width}}   {cells[0]}  {cells[1]}")
+    print(f"\nletterCase: {policy}, vzorků: {rows[0][3]}")
 
 
 def compare(got: str, want: str, policy: str) -> bool:
@@ -114,6 +173,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("models", nargs="+")
     parser.add_argument("--letter-case", choices=POLICIES, default="preserve")
+    parser.add_argument("--color", choices=("auto", "always", "never"), default="auto")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -124,10 +184,13 @@ def main() -> int:
         print("Varování: ollama není v PATH, měření poběží jen proti běžícímu serveru",
               file=sys.stderr)
 
+    rows: list[tuple[str, int, int, int]] = []
     for model in args.models:
         print(f"\n== {model}  (letterCase: {args.letter_case})")
         exact, verified, total = run(model, args.letter_case, args.verbose)
-        print(f"   přesně {exact}/{total}, prošlo verifikací {verified}/{total}")
+        rows.append((model, exact, verified, total))
+
+    summary(rows, args.letter_case, args.color)
     return 0
 
 
