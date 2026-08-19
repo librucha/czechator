@@ -50,6 +50,9 @@ struct MenuContent: View {
                 ForEach(model.history) { entry in
                     Button(entry.preview) { model.restore(entry) }
                         .disabled(!entry.succeeded)
+                        // The label is truncated to 40 characters; the full
+                        // message stays reachable on hover.
+                        .help(entry.detail ?? entry.preview)
                 }
             }
 
