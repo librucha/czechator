@@ -133,3 +133,33 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
                 "zbytecne odmitnuto: \(text)")
     }
 }
+
+@Test func refusesAYamlBlockWhoseKeyAppearsOnce() throws {
+    let registry = try registry()
+    let blocks = [
+        "# seznam mest\nmesta:\n  - Praha\n  - Plzen",
+        "prihlaseni:\n  - Petr\n  - Jana",
+        "popis:\n  Aplikace slouzi ke sprave dokumentu",
+    ]
+    for text in blocks {
+        #expect(registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+                "neodmitnuto: \(text)")
+    }
+}
+
+@Test func doesNotRefuseSentencesWithEqualsOrAbbreviations() throws {
+    let registry = try registry()
+    let prose = [
+        "Dobry den,\nposilam vam shrnuti jednani. Rozpocet = 500 tisic korun.\nS pozdravem",
+        "Rovnice x = 5 nema reseni v prirozenych cislech.",
+        "Vzorec pro obsah je S = a * b.",
+        "pozn.: uvedene ceny jsou bez DPH",
+        "c.j.: 123/2020",
+        "v1.2: oprava chyb v exportu",
+        "obr.1: schema zapojeni",
+    ]
+    for text in prose {
+        #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+                "zbytecne odmitnuto: \(text)")
+    }
+}

@@ -70,15 +70,20 @@ public struct FormatRegistry: Sendable {
         pattern: #"^[ \t]*-[ \t]+[A-Za-z_][A-Za-z0-9_.\-]*[ \t]*:"#,
         options: [.anchorsMatchLines])
 
-    /// `key = value` at the start of a line. Prose never assigns.
+    /// `key = value` at the start of a line, where the key is one bare token or
+    /// a quoted string. Allowing bare spaces made every sentence containing an
+    /// `=` look like an assignment — `… jednani. Rozpocet = 500 tisic` in an
+    /// ordinary e-mail — while TOML really does quote keys that contain spaces.
     private static let assignmentPattern = try! NSRegularExpression(
-        pattern: #"^[ \t]*"?[A-Za-z_][A-Za-z0-9_.\- ]*"?[ \t]*="#,
+        pattern: #"^[ \t]*(?:"[^"\n]*"|[A-Za-z_][A-Za-z0-9_.\-]*)[ \t]*="#,
         options: [.anchorsMatchLines])
 
     /// A dotted or underscored key before a colon: `nazev.aplikace:`,
-    /// `slozka_projektu:`. No Czech sentence opens with a word shaped like that.
+    /// `slozka_projektu:`. The segment after the separator must start with a
+    /// letter and the key may not end on the separator — otherwise `pozn.:`,
+    /// `c.j.:` and `v1.2:` read as config when they are ordinary Czech.
     private static let dottedKeyPattern = try! NSRegularExpression(
-        pattern: #"^[ \t]*[A-Za-z_][A-Za-z0-9_\-]*[._][A-Za-z0-9_.\-]*[ \t]*:"#,
+        pattern: #"^[ \t]*[A-Za-z_][A-Za-z0-9_\-]*[._][A-Za-z_][A-Za-z0-9_\-]*[ \t]*:"#,
         options: [.anchorsMatchLines])
 
     /// A lowercase key before a colon. This is the one genuinely ambiguous
@@ -87,6 +92,13 @@ public struct FormatRegistry: Sendable {
     /// capitalized (`Jmeno:`, `Datum:`, `TODO:`), config keys are not.
     private static let lowercaseKeyPattern = try! NSRegularExpression(
         pattern: #"^[ \t]*[a-z][A-Za-z0-9_.\-]*[ \t]*:"#,
+        options: [.anchorsMatchLines])
+
+    /// A key on its own line followed by an indented line or a list item — a
+    /// YAML block. The lowercase-key signal needs two occurrences, but a block
+    /// has its key only once, so `mesta:` above a list of cities slipped past.
+    private static let yamlBlockPattern = try! NSRegularExpression(
+        pattern: #"^[ \t]*[a-z][A-Za-z0-9_\-]*:[ \t]*\r?\n[ \t]+\S"#,
         options: [.anchorsMatchLines])
 
     static func hasMappingSignature(_ text: String) -> Bool {
@@ -103,6 +115,7 @@ public struct FormatRegistry: Sendable {
         if matches(yamlItemPattern) > 0 { return true }
         if matches(assignmentPattern) > 0 { return true }
         if matches(dottedKeyPattern) > 0 { return true }
+        if matches(yamlBlockPattern) > 0 { return true }
 
         return matches(lowercaseKeyPattern) >= 2
     }

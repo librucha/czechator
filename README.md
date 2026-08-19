@@ -98,7 +98,7 @@ cp .build/release/czechator /usr/local/bin/
 
 ```bash
 make build     # both targets
-make test      # 193 tests
+make test      # 195 tests
 make app       # build/Czechator.app
 ```
 
@@ -233,8 +233,13 @@ rebuild.
   not supported at all — TOML, INI, YAML, .properties — are declined rather than
   treated as prose, which would let the model rename your keys. Verification
   cannot catch that on its own, because `fold("název") == fold("nazev")`.
+  Telling a config file from a note that happens to use labels is a heuristic
+  with no exact answer, so it is tuned to err on the side of refusing: a line
+  that assigns with `=`, a dotted or underscored key, a `[section]` header or a
+  YAML block will be declined even when it was prose.
 - **CSV headers are not protected.** A CSV handler is not implemented, so a
-  header row is corrected like any other line.
+  header row is corrected like any other line — `jmeno,prijmeni` becomes
+  `jméno,příjmení`.
 - **Changing a built-in default does not reach existing installations.** The
   config file is materialized in full on first run and then wins. Rules that
   exist to prevent corruption are therefore kept out of the config entirely.
