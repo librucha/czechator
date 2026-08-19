@@ -93,6 +93,16 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
         "seznam:\n  - jmeno: Petr\n  - jmeno: Jana",
         "\"muj klic\" = \"hodnota\"\n\"dalsi nazev\" = \"jina\"",
         "nazev.aplikace: Ulozeni\nuzivatelske.jmeno: petr",
+        // Values ending in a full stop: the shape of the key decides, not the
+        // punctuation of the value.
+        "nazev = Ulozeni dat.\nmesto = Praha.",
+        "popis.aplikace = Sprava dokumentu.\nnazev.aplikace = Ulozeni",
+        // A single line must be protected too.
+        "nazev = \"Ulozeni dat\"",
+        "# poznamka ke konfiguraci\nnazev = Ulozeni",
+        // Nested YAML, where the parent line carries no value.
+        "server:\n  nazev: hlavni\n  popis: Produkcni server.",
+        "aplikace:\n  databaze:\n    nazev: hlavni\n    popis: Ulozeni dat.",
     ]
     for text in configs {
         #expect(registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
@@ -105,12 +115,18 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
     let prose = [
         "Poznamka: schuzka je v pondeli.",
         "Datum: dvanacteho ledna. Misto: velka zasedacka.",
+        "Datum: dvanacteho ledna\nMisto: velka zasedacka",
         "Kniha \"Osud\": recenze vysla vcera v novinach.",
         "Sraz je v 10:30 pred budovou.",
         "Vysledek zapasu byl 3:1 pro domaci.",
         "Petr: Ahoj, jak se mas?\nJana: Dobre, dekuji.",
         "[Klikni sem](https://priklad.cz) pro vice informaci.",
         "[1] Novak, Jan. Ceske dejiny v kostce. Praha, 2020.",
+        // Capitalized labels are how Czech writes an address or a note.
+        "Jmeno: Petr Novak\nUlice: Kratka 5\nMesto: Praha",
+        "Datum: 12. ledna\nCas: 10:00\nMisto: zasedacka\nTema: rozpocet",
+        "TODO: dokoncit zpravu\nTODO: poslat mail Jane",
+        "Kontakt:\nTelefon: 123 456 789\nMesto: Praha",
     ]
     for text in prose {
         #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),

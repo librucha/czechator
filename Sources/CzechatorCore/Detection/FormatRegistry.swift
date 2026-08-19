@@ -62,15 +62,31 @@ public struct FormatRegistry: Sendable {
     /// A line that is nothing but `[section]` — TOML and INI. Prose does not do
     /// this; a Markdown link or a citation always has text around the bracket.
     private static let sectionPattern = try! NSRegularExpression(
-        pattern: #"^[ \t]*\[{1,2}[^\]\n]+\]{1,2}[ \t]*$"#, options: [.anchorsMatchLines])
+        pattern: #"^[ \t]*\[{1,2}[^\]\n]+\]{1,2}[ \t]*$"#,
+        options: [.anchorsMatchLines])
 
     /// A YAML list item whose element is a mapping: `- jmeno: Petr`.
     private static let yamlItemPattern = try! NSRegularExpression(
-        pattern: #"^[ \t]*-[ \t]+[A-Za-z_][A-Za-z0-9_.\-]*[ \t]*:"#, options: [.anchorsMatchLines])
+        pattern: #"^[ \t]*-[ \t]+[A-Za-z_][A-Za-z0-9_.\-]*[ \t]*:"#,
+        options: [.anchorsMatchLines])
 
-    /// `key = value` or `key: value` at the start of a line.
-    private static let keyValuePattern = try! NSRegularExpression(
-        pattern: #"^[ \t]*"?[A-Za-z_][A-Za-z0-9_.\- ]*"?[ \t]*[:=][ \t]*\S"#,
+    /// `key = value` at the start of a line. Prose never assigns.
+    private static let assignmentPattern = try! NSRegularExpression(
+        pattern: #"^[ \t]*"?[A-Za-z_][A-Za-z0-9_.\- ]*"?[ \t]*="#,
+        options: [.anchorsMatchLines])
+
+    /// A dotted or underscored key before a colon: `nazev.aplikace:`,
+    /// `slozka_projektu:`. No Czech sentence opens with a word shaped like that.
+    private static let dottedKeyPattern = try! NSRegularExpression(
+        pattern: #"^[ \t]*[A-Za-z_][A-Za-z0-9_\-]*[._][A-Za-z0-9_.\-]*[ \t]*:"#,
+        options: [.anchorsMatchLines])
+
+    /// A lowercase key before a colon. This is the one genuinely ambiguous
+    /// shape — `nazev: hlavni` could be YAML or a shopping list — so it is the
+    /// only signal that needs more than one occurrence. Czech prose labels are
+    /// capitalized (`Jmeno:`, `Datum:`, `TODO:`), config keys are not.
+    private static let lowercaseKeyPattern = try! NSRegularExpression(
+        pattern: #"^[ \t]*[a-z][A-Za-z0-9_.\-]*[ \t]*:"#,
         options: [.anchorsMatchLines])
 
     static func hasMappingSignature(_ text: String) -> Bool {
@@ -79,32 +95,16 @@ public struct FormatRegistry: Sendable {
             regex.numberOfMatches(in: text, options: [], range: whole)
         }
 
-        // Signatures prose does not produce at all.
+        // Shapes prose does not produce at all — one occurrence is enough, and
+        // a single-line document counts. Gating these on a line count left
+        // `nazev = "Ulozeni dat"` unprotected.
         if matches(jsonKeyPattern) > 0 { return true }
         if matches(sectionPattern) > 0 { return true }
         if matches(yamlItemPattern) > 0 { return true }
+        if matches(assignmentPattern) > 0 { return true }
+        if matches(dottedKeyPattern) > 0 { return true }
 
-        // A run of `key = value` lines. Two discriminators keep prose out: a
-        // note has at most a line or two of them among other text, and its
-        // values are sentences, which end in sentence punctuation.
-        let lines = text.split(whereSeparator: \.isNewline).filter {
-            !$0.trimmingCharacters(in: .whitespaces).isEmpty
-        }
-        guard lines.count >= 2 else { return false }
-
-        let keyValueLines = lines.filter { line in
-            // Indices must come from the very String being searched.
-            let text = String(line)
-            let range = NSRange(text.startIndex..<text.endIndex, in: text)
-            return keyValuePattern.firstMatch(in: text, options: [], range: range) != nil
-        }
-        guard keyValueLines.count >= 2, keyValueLines.count * 2 >= lines.count else { return false }
-
-        let sentenceLike = keyValueLines.filter {
-            let last = $0.trimmingCharacters(in: .whitespaces).last
-            return last == "." || last == "!" || last == "?"
-        }
-        return sentenceLike.count * 2 < keyValueLines.count
+        return matches(lowercaseKeyPattern) >= 2
     }
 
     public func select(_ input: ClipboardInput) -> (id: String, handler: any FormatHandler) {
