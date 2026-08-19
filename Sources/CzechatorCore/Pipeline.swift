@@ -59,21 +59,42 @@ extension ProviderFailure {
     }
 }
 
+/// Reports what actually went to the model and came back.
+///
+/// Without it a failed run tells the user only how many segments were rejected,
+/// not what the model said — which is precisely what you need to know to fix a
+/// prompt. Nothing is collected unless an observer is installed.
+public struct PipelineObserver: Sendable {
+    public var onExchange: @Sendable (_ sent: [String], _ received: [String]) -> Void
+    public var onRejected: @Sendable (_ original: String, _ correction: String) -> Void
+
+    public init(
+        onExchange: @escaping @Sendable ([String], [String]) -> Void,
+        onRejected: @escaping @Sendable (String, String) -> Void
+    ) {
+        self.onExchange = onExchange
+        self.onRejected = onRejected
+    }
+}
+
 public struct Pipeline: Sendable {
 
     private let registry: FormatRegistry
     private let provider: any LLMProvider
     private let limits: Limits
     private let promptOverride: String?
+    private let observer: PipelineObserver?
 
     public init(
         registry: FormatRegistry, provider: any LLMProvider,
-        limits: Limits, promptOverride: String?
+        limits: Limits, promptOverride: String?,
+        observer: PipelineObserver? = nil
     ) {
         self.registry = registry
         self.provider = provider
         self.limits = limits
         self.promptOverride = promptOverride
+        self.observer = observer
     }
 
     public func run(_ input: ClipboardInput) async throws -> PipelineResult {
@@ -162,6 +183,9 @@ public struct Pipeline: Sendable {
             let stillFailing = DiacriticVerifier.failingIndices(
                 segments: segments, corrections: corrections)
             guard stillFailing.isEmpty else {
+                for index in stillFailing {
+                    observer?.onRejected(segments[index].text, corrections[index])
+                }
                 throw PipelineError.verificationFailed(failedSegments: stillFailing.count)
             }
         }
@@ -245,6 +269,8 @@ public struct Pipeline: Sendable {
                     throw PipelineError.providerFailed(.unparsableResponse)
                 }
             }
+
+            observer?.onExchange(items, decoded)
 
             for (offset, positionInSubset) in batch.enumerated() {
                 let target = indices[positionInSubset]

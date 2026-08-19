@@ -68,6 +68,26 @@ public struct PromptConfig: Sendable, Codable, Equatable {
     public static let builtIn = PromptConfig(override: nil)
 
     public init(override: String?) { self.override = override }
+
+    private enum CodingKeys: String, CodingKey { case override }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        override = try container.decodeIfPresent(String.self, forKey: .override)
+    }
+
+    /// Writes `override: null` rather than letting the encoder drop the key.
+    /// The whole point of materializing the config is that the user can see
+    /// what is there to edit, and an omitted key is invisible — the file came
+    /// out as `prompt: {}`.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let override {
+            try container.encode(override, forKey: .override)
+        } else {
+            try container.encodeNil(forKey: .override)
+        }
+    }
 }
 
 public struct Config: Sendable, Codable, Equatable {

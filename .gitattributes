@@ -1,1 +1,5 @@
 * text=auto eol=lf
+
+# Fixtures are compared byte for byte; normalizing line endings would destroy
+# the CRLF sample, which exists precisely to prove CRLF survives.
+Fixtures/quality/** -text

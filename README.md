@@ -98,7 +98,7 @@ cp .build/release/czechator /usr/local/bin/
 
 ```bash
 make build     # both targets
-make test      # 195 tests
+make test      # 196 tests
 make icon      # build/Czechator.icns from img/exports/AppIcon.appiconset
 make app       # build/Czechator.app
 ```
@@ -107,10 +107,37 @@ Tests run through `make test`, never bare `swift test`: with only the Command
 Line Tools installed, `Testing.framework` sits outside the default search paths
 and the Makefile supplies the flags.
 
+## Tuning
+
+`czechator fix --debug` prints what went to the model and what came back, on
+stderr, so a refused run shows the actual answer instead of just a count:
+
+```
+$ echo 'Prilis zlutoucky kun.' | czechator fix - --debug
+── dávka (1 položek) ──
+  1. posláno: Prilis zlutoucky kun.
+     vráceno: Příliš žluťoučký kůň.
+     → jen diakritika, v pořádku
+```
+
+On a rejection it also points at the first character where the folded forms
+diverge — the change the model made beyond adding accents.
+
+Four things are worth turning, roughly in order of effect: the **model**
+(`profiles.<name>.model`), the **prompt** (`prompt.override`), the **batch size**
+(`limits.maxBatchChars` — set it low while tuning so each line goes on its own),
+and **what gets sent at all** (`segmentation`, inspected with `czechator
+segments --show-skipped`).
+
+Measure rather than guess: `Tools/quality.py <model>` runs the fixtures in
+`Fixtures/quality/` and reports both how many samples came out exactly right and
+how many passed verification. Those are different numbers and both matter.
+
 ## Which model to use
 
-`qwen3:4b-instruct` is the default and the one that was measured. On a
-ten-sample Czech suite it got 6/10 exactly right and 9/10 past verification.
+`qwen3:4b-instruct` is the default and the one that was measured. On the
+22-sample suite in `Fixtures/quality/` it got 15 exactly right and 21 past
+verification.
 
 `gemma3:4b` was measured too and is **not recommended** — 4/10 exact, 5/10
 verified, and its failures included swapping whole words (see above). Nothing

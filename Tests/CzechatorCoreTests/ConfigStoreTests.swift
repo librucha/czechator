@@ -156,3 +156,12 @@ private func write(_ yaml: String, to url: URL) throws {
     #expect(limits.maxInputBytes >= 1)
     #expect(limits.maxBatchChars >= 1)
 }
+
+@Test func materializesThePromptOverrideKeyEvenWhenEmpty() throws {
+    let (store, url) = temporaryStore()
+    _ = try store.load()
+    let written = try String(contentsOf: url, encoding: .utf8)
+    // "prompt: {}" hides the one key the user might want to set.
+    #expect(written.contains("override"))
+    #expect(!written.contains("prompt: {}"))
+}

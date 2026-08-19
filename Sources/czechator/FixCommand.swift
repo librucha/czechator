@@ -17,6 +17,9 @@ struct FixCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Cesta ke konfiguraci.")
     var config: String?
 
+    @Flag(name: .long, help: "Vypíše na chybový výstup, co šlo modelu a co vrátil.")
+    var debug = false
+
     func run() async throws {
         let environment = try CLIEnvironment.load(configPath: config, profileName: profile)
         let text = try CLIEnvironment.readInput(path: path)
@@ -25,7 +28,8 @@ struct FixCommand: AsyncParsableCommand {
             registry: environment.registry,
             provider: try environment.makeProvider(),
             limits: environment.config.limits,
-            promptOverride: environment.config.prompt.override)
+            promptOverride: environment.config.prompt.override,
+            observer: debug ? DebugReporter.observer() : nil)
 
         do {
             let result = try await pipeline.run(ClipboardInput(text: text))
