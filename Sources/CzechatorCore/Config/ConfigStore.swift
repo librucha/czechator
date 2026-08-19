@@ -33,8 +33,13 @@ public struct ConfigStore: Sendable {
     }
 
     /// Writes the config back while keeping any keys the tool does not know
-    /// about — hand-written notes survive the settings window.
+    /// about — hand-written entries survive the settings window.
+    ///
+    /// Validates first: an invalid config written to disk would make every later
+    /// `load` fail, and `load` only rewrites defaults when the file is *missing*,
+    /// not when it is present but broken — the user would be locked out for good.
     public func save(_ config: Config) throws {
+        try config.validate()
         let encoded = try encodeNode(config)
         if let existing = try? String(contentsOf: url, encoding: .utf8),
             let base = try Yams.compose(yaml: existing)
@@ -61,7 +66,10 @@ public struct ConfigStore: Sendable {
     }
 
     /// Recursive mapping merge: known keys are overwritten, unknown ones kept.
-    /// Sequences and scalars are replaced wholesale.
+    ///
+    /// Sequences and scalars are replaced wholesale, so a hand-added key inside
+    /// a sequence item (a note on one hotkey) does not survive. YAML comments
+    /// do not survive either — Yams drops them on compose.
     static func merge(into base: Node, from new: Node) -> Node {
         guard case .mapping(let baseMapping) = base,
             case .mapping(let newMapping) = new

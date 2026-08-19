@@ -132,3 +132,62 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
     #expect(result.correctedText == text)
     #expect(result.changedSegmentCount == 0)
 }
+
+@Test func splitsWorkAcrossBatchesAndMapsResultsBack() async throws {
+    // Exercises the indices -> subset -> batch indirection with more than one
+    // batch, which the happy path never reaches.
+    let lines = (1...6).map { "radek cislo \($0) Prilis" }
+    let text = lines.joined(separator: "\n")
+    let provider = FakeProvider(transform: restore)
+    let result = try await pipeline(
+        provider, limits: Limits(maxInputBytes: 51_200, maxBatchChars: 25)
+    ).run(ClipboardInput(text: text))
+
+    #expect(result.correctedText == lines.map { $0.replacingOccurrences(of: "Prilis", with: "Příliš") }.joined(separator: "\n"))
+    #expect(result.segmentCount == 6)
+    #expect(provider.callCount > 1)
+}
+
+@Test func retryPromptContainsOnlyTheOffendingSegment() async throws {
+    final class RecordingProvider: LLMProvider, @unchecked Sendable {
+        var prompts: [String] = []
+        func complete(_ prompt: Prompt) async throws -> String {
+            prompts.append(prompt.user)
+            let count = prompt.user.split(separator: "\n").count
+            let items = try NumberedList.decode(prompt.user, expectedCount: count)
+            if prompts.count == 1 {
+                return NumberedList.encode(
+                    items.enumerated().map { $0.offset == 1 ? "uplne jinak" : $0.element })
+            }
+            return NumberedList.encode(items)
+        }
+    }
+    let provider = RecordingProvider()
+    _ = try await pipeline(provider).run(ClipboardInput(text: "prvni radek\ndruhy radek"))
+
+    #expect(provider.prompts.count == 2)
+    #expect(provider.prompts[1] == "1. druhy radek")
+}
+
+@Test func providerFailuresAreReportedAsCategoriesWithoutPayload() async {
+    final class Unauthorized: LLMProvider, @unchecked Sendable {
+        func complete(_ prompt: Prompt) async throws -> String {
+            throw HTTPError.status(code: 401, body: #"{"error":"invalid key sk-tajne"}"#)
+        }
+    }
+    await #expect(throws: PipelineError.providerFailed(.unauthorized)) {
+        try await pipeline(Unauthorized()).run(ClipboardInput(text: "Prilis zlutoucky kun"))
+    }
+    // The message must not carry the body through.
+    let message = ErrorMessages.describe(PipelineError.providerFailed(.unauthorized))
+    #expect(!message.contains("sk-tajne"))
+}
+
+@Test func identicalPlainFlavourIsNotChargedTwiceAgainstTheLimit() async throws {
+    let text = "Prilis zlutoucky kun"
+    let result = try await pipeline(
+        FakeProvider(transform: restore),
+        limits: Limits(maxInputBytes: text.utf8.count, maxBatchChars: 1500)
+    ).run(ClipboardInput(text: text, uti: nil, plainText: text))
+    #expect(result.correctedText == "Příliš žluťoučký kůň")
+}

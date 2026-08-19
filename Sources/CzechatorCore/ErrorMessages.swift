@@ -21,11 +21,24 @@ public enum ErrorMessages {
             return "Ve schránce není text."
         case .inputTooLarge(let bytes, let limit):
             return "Vstup má \(bytes) B, limit je \(limit) B."
-        case .providerFailed(let detail):
-            return "Model neodpověděl použitelně: \(detail)"
+        case .providerFailed(let failure):
+            return "Model neodpověděl: \(describe(failure))"
         case .verificationFailed(let count):
             return "Výsledek neprošel kontrolou (\(count) \(segmentWord(count))). "
                 + "Schránka zůstala beze změny."
+        }
+    }
+
+    static func describe(_ failure: ProviderFailure) -> String {
+        switch failure {
+        case .unreachable:
+            return "nepodařilo se k němu připojit."
+        case .unauthorized:
+            return "odmítl přihlašovací klíč."
+        case .http(let status):
+            return "vrátil chybu HTTP \(status)."
+        case .unparsableResponse:
+            return "vrátil odpověď, kterou nešlo zpracovat."
         }
     }
 

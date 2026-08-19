@@ -118,3 +118,34 @@ private func write(_ yaml: String, to url: URL) throws {
     #expect(Config.builtIn.hotkeys.first?.source == "clipboard")
     #expect(Config.builtIn.hotkeys.first?.sink == "clipboard")
 }
+
+@Test func saveRefusesToWriteAnInvalidConfig() throws {
+    let (store, _) = temporaryStore()
+    var config = try store.load()
+    config.activeProfile = "neexistuje"
+    #expect(throws: ConfigError.unknownActiveProfile("neexistuje")) { try store.save(config) }
+}
+
+@Test func rejectsNonHTTPSchemes() throws {
+    let (store, url) = temporaryStore()
+    try write(
+        """
+        activeProfile: local
+        profiles:
+          local:
+            kind: ollama
+            endpoint: ftp://example.com
+            model: m
+            temperature: 0
+            timeoutSeconds: 30
+        """, to: url)
+    #expect(throws: ConfigError.invalidEndpoint(profile: "local", value: "ftp://example.com")) {
+        try store.load()
+    }
+}
+
+@Test func rejectsAnEmptyProfileMap() throws {
+    let (store, url) = temporaryStore()
+    try write("activeProfile: local\nprofiles: {}\n", to: url)
+    #expect(throws: ConfigError.unknownActiveProfile("local")) { try store.load() }
+}

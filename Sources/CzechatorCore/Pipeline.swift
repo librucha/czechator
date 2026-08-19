@@ -21,11 +21,41 @@ public struct PipelineResult: Sendable, Equatable {
     }
 }
 
+/// Why the model could not be used, as a category rather than a message.
+///
+/// The tool's only input is the clipboard, and its errors surface in
+/// Notification Center, which persists them. Passing a transport message or a
+/// slice of the server response through would leak the user's text — and, for
+/// a 401 body, potentially the API key itself.
+public enum ProviderFailure: Sendable, Equatable {
+    case unreachable
+    case unauthorized
+    case http(status: Int)
+    case unparsableResponse
+}
+
 public enum PipelineError: Error, Equatable {
     case noText
     case inputTooLarge(bytes: Int, limit: Int)
-    case providerFailed(String)
+    case providerFailed(ProviderFailure)
     case verificationFailed(failedSegments: Int)
+}
+
+extension ProviderFailure {
+    /// Collapses any provider error into a category, deliberately discarding
+    /// every payload.
+    static func categorize(_ error: any Error) -> ProviderFailure {
+        switch error {
+        case HTTPError.status(let code, _) where code == 401 || code == 403:
+            return .unauthorized
+        case HTTPError.status(let code, _):
+            return .http(status: code)
+        case HTTPError.transport:
+            return .unreachable
+        default:
+            return .unparsableResponse
+        }
+    }
 }
 
 public struct Pipeline: Sendable {
@@ -49,21 +79,29 @@ public struct Pipeline: Sendable {
         guard !input.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw PipelineError.noText
         }
-        let bytes = input.text.utf8.count + (input.plainText?.utf8.count ?? 0)
+        // Only representations that will actually be processed count towards
+        // the limit; an identical plain flavour is skipped, so charging for it
+        // would reject inputs the tool would have handled fine.
+        let plainToProcess = input.plainText.flatMap { $0 == input.text ? nil : $0 }
+        let bytes = input.text.utf8.count + (plainToProcess?.utf8.count ?? 0)
         guard bytes <= limits.maxInputBytes else {
             throw PipelineError.inputTooLarge(bytes: bytes, limit: limits.maxInputBytes)
         }
 
         // Shared across both passes: the plain representation of an HTML
         // clipboard repeats the same words, so it costs no extra model calls.
+        //
+        // Keyed by the exact segment text, not its folded form. Folding would
+        // let one segment's correction stand in for a different segment that
+        // merely folds the same — "byt" served from "být" — and the verifier
+        // cannot catch that, because both fold identically.
         var cache: [String: String] = [:]
 
         let selected = registry.select(input)
         let main = try await correct(input.text, handler: selected.handler, cache: &cache)
 
         var correctedPlain: Corrected?
-        if let plain = input.plainText,
-            plain != input.text,
+        if let plain = plainToProcess,
             !plain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             let plainHandler = registry.handler(id: PlainTextHandler.id)
         {
@@ -98,7 +136,7 @@ public struct Pipeline: Sendable {
         var corrections = [String](repeating: "", count: segments.count)
         var pending: [Int] = []
         for (index, segment) in segments.enumerated() {
-            if let hit = cache[DiacriticFolding.fold(segment.text)] {
+            if let hit = cache[segment.text] {
                 corrections[index] = hit
             } else {
                 pending.append(index)
@@ -152,7 +190,7 @@ public struct Pipeline: Sendable {
             do {
                 answer = try await provider.complete(prompt)
             } catch {
-                throw PipelineError.providerFailed(String(describing: error))
+                throw PipelineError.providerFailed(.categorize(error))
             }
 
             var decoded: [String]
@@ -164,20 +202,19 @@ public struct Pipeline: Sendable {
                 do {
                     second = try await provider.complete(prompt)
                 } catch {
-                    throw PipelineError.providerFailed(String(describing: error))
+                    throw PipelineError.providerFailed(.categorize(error))
                 }
                 do {
                     decoded = try NumberedList.decode(second, expectedCount: items.count)
                 } catch {
-                    throw PipelineError.providerFailed(
-                        "odpověď modelu neodpovídá číslovanému seznamu")
+                    throw PipelineError.providerFailed(.unparsableResponse)
                 }
             }
 
             for (offset, positionInSubset) in batch.enumerated() {
                 let target = indices[positionInSubset]
                 corrections[target] = decoded[offset]
-                cache[DiacriticFolding.fold(segments[target].text)] = decoded[offset]
+                cache[segments[target].text] = decoded[offset]
             }
         }
     }
