@@ -29,3 +29,46 @@ fmt:
 
 clean:
 	rm -rf .build build
+
+APP := build/Czechator.app
+BIN := $(APP)/Contents/MacOS/CzechatorApp
+
+.PHONY: app install icon
+
+# Optional: drop a 1024x1024 Resources/icon.png in and this produces the icns.
+# A menu bar only app (LSUIElement) shows its icon just in Finder, so the
+# default is acceptable and the bundle builds without one.
+icon:
+	@if [ -f Resources/icon.png ]; then \
+	  rm -rf build/Czechator.iconset; \
+	  mkdir -p build/Czechator.iconset; \
+	  for size in 16 32 64 128 256 512; do \
+	    sips -z $$size $$size Resources/icon.png \
+	      --out build/Czechator.iconset/icon_$${size}x$${size}.png >/dev/null; \
+	    sips -z $$((size*2)) $$((size*2)) Resources/icon.png \
+	      --out build/Czechator.iconset/icon_$${size}x$${size}@2x.png >/dev/null; \
+	  done; \
+	  iconutil --convert icns build/Czechator.iconset --output build/Czechator.icns; \
+	  echo "ikona sestavena"; \
+	else \
+	  echo "Resources/icon.png chybi, bundle pojede s vychozi ikonou"; \
+	fi
+
+app: icon
+	swift build -c release --product CzechatorApp
+	rm -rf $(APP)
+	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Resources
+	cp .build/release/CzechatorApp $(BIN)
+	cp Resources/Info.plist $(APP)/Contents/Info.plist
+	@if [ -f build/Czechator.icns ]; then \
+	  cp build/Czechator.icns $(APP)/Contents/Resources/Czechator.icns; \
+	  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string Czechator" \
+	    $(APP)/Contents/Info.plist >/dev/null 2>&1 || true; \
+	fi
+	codesign --force --sign - --timestamp=none $(APP)
+	@echo "hotovo: $(APP)"
+
+install: app
+	rm -rf /Applications/Czechator.app
+	cp -R $(APP) /Applications/Czechator.app
+	@echo "nainstalovano do /Applications/Czechator.app"
