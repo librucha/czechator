@@ -8,3 +8,5 @@ img/*.zip
 
 # Implementační plán se dá kdykoli vygenerovat ze specifikace.
 docs/superpowers/plans/
+__pycache__/
+*.pyc
