@@ -65,7 +65,9 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
         #expect(round == raw, "round trip failed for \(raw)")
     }
     #expect(JSONEscapeStyle.detect(in: #"a\\/b"#).escapedSolidus == false)
-    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).spellings.isEmpty)
+    // The escaped backslash is itself a spelling; what matters is that the
+    // following "u" was not swallowed as the start of a \u escape.
+    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).spellings == [2: #"\\"#])
     #expect(JSONEscapeStyle.detect(in: #"opravdu \/ escapovane"#).escapedSolidus == true)
     #expect(JSONEscapeStyle.detect(in: #"opravdu \u00e1 escapovane"#).spellings.count == 1)
 }
@@ -138,5 +140,25 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
         #expect(JSONEscaping.escape(JSONEscaping.unescape(raw[...]), style: style) == raw)
     }
     #expect(JSONEscapeStyle.detect(in: #"a\\/b"#).escapedSolidus == false)
-    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).spellings.isEmpty)
+    // The escaped backslash is itself a spelling; what matters is that the
+    // following "u" was not swallowed as the start of a \u escape.
+    #expect(JSONEscapeStyle.detect(in: #"C:\\uzivatel"#).spellings == [2: #"\\"#])
+}
+
+@Test func handlesEscapesThatMergeIntoOneGrapheme() {
+    // A surrogate pair is two escapes but one grapheme; counting one index per
+    // escape shifted every later position and broke the round trip.
+    let emoji = #"emoji \ud83d\ude00 tady"#
+    let style = JSONEscapeStyle.detect(in: emoji)
+    let unescaped = JSONEscaping.unescape(emoji[...])
+    #expect(unescaped == "emoji \u{1F600} tady")
+    #expect(style.spellings[6] == #"\ud83d\ude00"#)
+    #expect(JSONEscaping.escape(unescaped, style: style) == emoji)
+
+    // Same for a combining mark: "a" plus U+0301 is one grapheme.
+    let combining = #"kra\u0301sne"#
+    let combiningStyle = JSONEscapeStyle.detect(in: combining)
+    let combiningText = JSONEscaping.unescape(combining[...])
+    #expect(combiningText.count == 6)
+    #expect(JSONEscaping.escape(combiningText, style: combiningStyle) == combining)
 }

@@ -60,3 +60,26 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
         !registry.looksStructuredButUnclaimed(
             ClipboardInput(text: "<?xml version=\"1.0\"?><r>x</r>")))
 }
+
+@Test func flagsStructureWhoseBraceIsNotFirst() throws {
+    // A leading comment pushes the brace off the front; the earlier
+    // first-character check missed exactly this and renamed the keys.
+    let jsonc = "// konfigurace aplikace\n{\n  \"slozka_projektu\": \"data\"\n}"
+    #expect(try registry().looksStructuredButUnclaimed(ClipboardInput(text: jsonc)))
+}
+
+@Test func doesNotRefuseProseThatMerelyStartsWithABracket() throws {
+    let registry = try registry()
+    let prose = [
+        "[Klikni sem](https://priklad.cz) pro vice informaci.",
+        "[1] Novak, Jan. Ceske dejiny v kostce. Praha, 2020.",
+        "<3 mam te rad, moje mila.",
+        "{{jmeno}}, vitejte v aplikaci.",
+        "{ x | x > 0 } je mnozina kladnych cisel.",
+    ]
+    for text in prose {
+        #expect(
+            !registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+            "zbytecne odmitnuto: \(text)")
+    }
+}

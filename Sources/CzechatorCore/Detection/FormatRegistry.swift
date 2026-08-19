@@ -36,21 +36,30 @@ public struct FormatRegistry: Sendable {
         entries.first { $0.id == id }?.handler
     }
 
-    /// Text that opens like a structured document but that no structured
-    /// handler claimed.
+    /// Text that carries the signature of a structured document but that no
+    /// structured handler could parse.
     ///
     /// Falling back to plain text here is not safe: the plain handler would
     /// treat `"nazev":` as correctable prose and the model would rename the key.
     /// `fold` cannot catch that — `fold("název") == fold("nazev")` — so the
     /// corruption would reach the clipboard silently. JSONC, a trailing comma,
     /// NDJSON and a truncated fragment all land here.
+    ///
+    /// The signature is a quoted key followed by a colon, not the first
+    /// character: a leading comment pushes the brace off the front, while
+    /// ordinary prose starting with `[` (a Markdown link, a citation) or `<`
+    /// would be refused for no reason.
     public func looksStructuredButUnclaimed(_ input: ClipboardInput) -> Bool {
-        let trimmed = input.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.hasPrefix("{") || trimmed.hasPrefix("[") || trimmed.hasPrefix("<") else {
-            return false
-        }
-        return select(input).id == PlainTextHandler.id
+        guard select(input).id == PlainTextHandler.id else { return false }
+        return Self.quotedKeyPattern.firstMatch(
+            in: input.text, options: [],
+            range: NSRange(input.text.startIndex..<input.text.endIndex, in: input.text)) != nil
     }
+
+    /// A double-quoted string immediately followed by a colon — the one shape
+    /// that means "this is a mapping", in JSON and every dialect of it.
+    private static let quotedKeyPattern = try! NSRegularExpression(
+        pattern: #""[^"\n]*"\s*:"#, options: [])
 
     public func select(_ input: ClipboardInput) -> (id: String, handler: any FormatHandler) {
         // Seeded with the last entry, which is the plain-text fallback.

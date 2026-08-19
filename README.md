@@ -98,7 +98,7 @@ cp .build/release/czechator /usr/local/bin/
 
 ```bash
 make build     # both targets
-make test      # 187 tests
+make test      # 192 tests
 make app       # build/Czechator.app
 ```
 
@@ -235,6 +235,13 @@ rebuild.
   `fold("název") == fold("nazev")`.
 - **CSV headers are not protected.** A CSV handler is not implemented, so a
   header row is corrected like any other line.
+- **A word before a colon or equals sign at the start of a line is left
+  alone.** That is how TOML, INI, YAML and .properties keys are protected from
+  being renamed — the cost is that prose like `Poznamka: …` keeps its first word
+  unaccented. The rest of the line is corrected normally.
+- **Changing a built-in default does not reach existing installations.** The
+  config file is materialized in full on first run and then wins. Rules that
+  exist to prevent corruption are therefore kept out of the config entirely.
 - **The clipboard is replaced silently.** There is no diff preview yet; the
   history in the menu bar is the undo.
 - **Distribution needs signing.** The build is ad-hoc signed, which is fine on

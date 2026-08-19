@@ -23,33 +23,51 @@ public struct JSONEscapeStyle: Sendable, Equatable {
     }
 
     public static func detect(in raw: String) -> JSONEscapeStyle {
-        var spellings: [Int: String] = [:]
         var escapedSolidus = false
-        var outputIndex = 0
+
+        // One entry per grapheme of the unescaped text, in order, recording the
+        // raw source it came from. A surrogate pair is two escapes but one
+        // grapheme, and a combining mark attaches to the grapheme before it —
+        // counting one index per escape shifted every later position.
+        var spans: [(start: String.Index, end: String.Index, hasEscape: Bool)] = []
+
+        var out = ""
         var index = raw.startIndex
 
         while index < raw.endIndex {
-            guard raw[index] == "\\" else {
-                outputIndex += 1
-                index = raw.index(after: index)
-                continue
-            }
-            let next = raw.index(after: index)
-            guard next < raw.endIndex else { break }
+            let tokenStart = index
+            let countBefore = out.count
+            var tokenIsEscape = false
 
-            if raw[next] == "u",
-                let hexEnd = raw.index(next, offsetBy: 5, limitedBy: raw.endIndex)
-            {
-                spellings[outputIndex] = String(raw[index..<hexEnd])
-                outputIndex += 1
-                index = hexEnd
-                continue
+            if raw[index] == "\\", raw.index(after: index) < raw.endIndex {
+                let next = raw.index(after: index)
+                tokenIsEscape = true
+                if raw[next] == "/" { escapedSolidus = true }
+                if raw[next] == "u",
+                    let hexEnd = raw.index(next, offsetBy: 5, limitedBy: raw.endIndex)
+                {
+                    index = hexEnd
+                } else {
+                    index = raw.index(after: next)
+                }
+            } else {
+                index = raw.index(after: index)
             }
-            if raw[next] == "/" { escapedSolidus = true }
-            // Consume both characters, so an escaped backslash cannot be
-            // mistaken for the start of the next escape.
-            outputIndex += 1
-            index = raw.index(after: next)
+            out = JSONEscaping.unescape(raw[raw.startIndex..<index])
+
+            if out.count > countBefore {
+                if !spans.isEmpty { spans[spans.count - 1].end = tokenStart }
+                spans.append((start: tokenStart, end: index, hasEscape: tokenIsEscape))
+            } else if !spans.isEmpty {
+                spans[spans.count - 1].hasEscape =
+                    spans[spans.count - 1].hasEscape || tokenIsEscape
+            }
+        }
+        if !spans.isEmpty { spans[spans.count - 1].end = raw.endIndex }
+
+        var spellings: [Int: String] = [:]
+        for (position, span) in spans.enumerated() where span.hasEscape {
+            spellings[position] = String(raw[span.start..<span.end])
         }
         return JSONEscapeStyle(spellings: spellings, escapedSolidus: escapedSolidus)
     }
