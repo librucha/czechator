@@ -83,3 +83,37 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
             "zbytecne odmitnuto: \(text)")
     }
 }
+
+@Test func refusesConfigFormatsItCannotParse() throws {
+    let registry = try registry()
+    let configs = [
+        "# konfigurace\nslozka_projektu = \"Ulozeni dat\"\nprijmeni = \"Novak\"",
+        "[Obecne]\nnazev = Aplikace\n[Sit_pripojeni]\nport = 8080",
+        "[[polozky]]\nnazev = \"Prvni\"",
+        "seznam:\n  - jmeno: Petr\n  - jmeno: Jana",
+        "\"muj klic\" = \"hodnota\"\n\"dalsi nazev\" = \"jina\"",
+        "nazev.aplikace: Ulozeni\nuzivatelske.jmeno: petr",
+    ]
+    for text in configs {
+        #expect(registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+                "neodmitnuto: \(text)")
+    }
+}
+
+@Test func doesNotRefuseProseWithLabelsOrColons() throws {
+    let registry = try registry()
+    let prose = [
+        "Poznamka: schuzka je v pondeli.",
+        "Datum: dvanacteho ledna. Misto: velka zasedacka.",
+        "Kniha \"Osud\": recenze vysla vcera v novinach.",
+        "Sraz je v 10:30 pred budovou.",
+        "Vysledek zapasu byl 3:1 pro domaci.",
+        "Petr: Ahoj, jak se mas?\nJana: Dobre, dekuji.",
+        "[Klikni sem](https://priklad.cz) pro vice informaci.",
+        "[1] Novak, Jan. Ceske dejiny v kostce. Praha, 2020.",
+    ]
+    for text in prose {
+        #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+                "zbytecne odmitnuto: \(text)")
+    }
+}

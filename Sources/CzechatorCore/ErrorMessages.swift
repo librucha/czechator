@@ -22,7 +22,7 @@ public enum ErrorMessages {
         case .noText:
             return "Ve schránce není text."
         case .unparsableStructure:
-            return "Text vypadá jako JSON, XML nebo HTML, ale nejde přečíst. "
+            return "Text vypadá jako konfigurace nebo strukturovaná data, ale nejde přečíst. "
                 + "Neopravuji ho, aby se z klíčů a značek nestal opravovaný text."
         case .inputTooLarge(let bytes, let limit):
             return "Vstup má \(bytes) B, limit je \(limit) B."

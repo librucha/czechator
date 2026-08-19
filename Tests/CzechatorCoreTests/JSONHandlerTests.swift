@@ -162,3 +162,19 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
     #expect(combiningText.count == 6)
     #expect(JSONEscaping.escape(combiningText, style: combiningStyle) == combining)
 }
+
+@Test func handlesGraphemesBuiltFromSeveralSurrogatePairs() {
+    // A flag, a ZWJ family and a skin tone are each one grapheme made of
+    // several escaped pairs; completing one shrinks the grapheme count, which
+    // used to leave a surplus span and eat the next character.
+    let cases = [
+        #"vlajka \ud83c\udde8\ud83c\uddff konec"#,
+        #"rodina \ud83d\udc68\u200d\ud83d\udc69 na vylete"#,
+        #"palec \ud83d\udc4d\ud83c\udffd za praci"#,
+    ]
+    for raw in cases {
+        let style = JSONEscapeStyle.detect(in: raw)
+        let round = JSONEscaping.escape(JSONEscaping.unescape(raw[...]), style: style)
+        #expect(round == raw, "round trip failed")
+    }
+}

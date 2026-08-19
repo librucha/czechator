@@ -58,6 +58,17 @@ public struct JSONEscapeStyle: Sendable, Equatable {
             if out.count > countBefore {
                 if !spans.isEmpty { spans[spans.count - 1].end = tokenStart }
                 spans.append((start: tokenStart, end: index, hasEscape: tokenIsEscape))
+            } else if out.count < countBefore {
+                // A flag, a ZWJ family or a skin tone merges several pairs into
+                // one grapheme, so completing it can *shrink* the count: the
+                // stand-in the unpaired high surrogate produced disappears.
+                // Fold the surplus spans back into the one that survives.
+                while spans.count > out.count, spans.count > 1 {
+                    let surplus = spans.removeLast()
+                    spans[spans.count - 1].hasEscape =
+                        spans[spans.count - 1].hasEscape || surplus.hasEscape
+                }
+                if !spans.isEmpty { spans[spans.count - 1].hasEscape = true }
             } else if !spans.isEmpty {
                 spans[spans.count - 1].hasEscape =
                     spans[spans.count - 1].hasEscape || tokenIsEscape

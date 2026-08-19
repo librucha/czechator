@@ -51,24 +51,3 @@ private func handler() throws -> PlainTextHandler {
     #expect(PlainTextHandler.confidence(for: ClipboardInput(text: "cokoliv")) == 0.1)
     #expect(PlainTextHandler.id == "plain")
 }
-
-@Test func doesNotCorrectConfigKeysInFormatsWeDoNotParse() throws {
-    // TOML and INI are not parsed, so the plain handler must not hand their
-    // keys to the model — a renamed key is corruption fold cannot detect.
-    let toml = "# konfigurace\nslozka_projektu = \"Ulozeni dat\"\nprijmeni = \"Novak\""
-    let segments = try PlainTextHandler(rules: .builtIn).segments(in: toml)
-    let texts = segments.map(\.text)
-    #expect(!texts.contains { $0.contains("slozka_projektu") })
-    #expect(!texts.contains { $0.contains("prijmeni") })
-    // The values are still corrected.
-    #expect(texts.contains { $0.contains("Ulozeni dat") })
-}
-
-@Test func keyProtectionSurvivesAConfigThatOmitsIt() throws {
-    // The rule must not be removable: a config written by an older build would
-    // otherwise keep that installation unprotected.
-    var rules = SegmentationRules.builtIn
-    rules.plain = PlainRules(skipPatterns: [])
-    let segments = try PlainTextHandler(rules: rules).segments(in: "prijmeni = \"Novak\"")
-    #expect(!segments.map(\.text).contains { $0.contains("prijmeni") })
-}

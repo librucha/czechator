@@ -98,7 +98,7 @@ cp .build/release/czechator /usr/local/bin/
 
 ```bash
 make build     # both targets
-make test      # 192 tests
+make test      # 193 tests
 make app       # build/Czechator.app
 ```
 
@@ -229,16 +229,12 @@ rebuild.
   problem, and the reason the model matters.
 - **RTF-only clipboards** are reported as unsupported rather than mangled.
 - **Structure that does not parse is refused, not guessed.** JSON with comments
-  or a trailing comma, NDJSON, a truncated fragment — Czechator declines rather
-  than fall back to treating the document as prose, which would let the model
-  rename your keys. Verification cannot catch that on its own, because
-  `fold("název") == fold("nazev")`.
+  or a trailing comma, NDJSON, a truncated fragment, and config formats that are
+  not supported at all — TOML, INI, YAML, .properties — are declined rather than
+  treated as prose, which would let the model rename your keys. Verification
+  cannot catch that on its own, because `fold("název") == fold("nazev")`.
 - **CSV headers are not protected.** A CSV handler is not implemented, so a
   header row is corrected like any other line.
-- **A word before a colon or equals sign at the start of a line is left
-  alone.** That is how TOML, INI, YAML and .properties keys are protected from
-  being renamed — the cost is that prose like `Poznamka: …` keeps its first word
-  unaccented. The rest of the line is corrected normally.
 - **Changing a built-in default does not reach existing installations.** The
   config file is materialized in full on first run and then wins. Rules that
   exist to prevent corruption are therefore kept out of the config entirely.
