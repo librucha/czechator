@@ -4,6 +4,8 @@ import SwiftUI
 @main
 struct CzechatorApp: App {
 
+    static let settingsWindowID = "settings"
+
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var model = AppModel.shared
 
@@ -12,9 +14,16 @@ struct CzechatorApp: App {
             MenuContent(model: model)
         }
 
-        Settings {
+        // A plain Window, not the Settings scene. Measured on macOS 26: in an
+        // accessory app (LSUIElement) the Settings scene never materializes —
+        // showSettingsWindow: reports success and no window is created, so both
+        // SettingsLink and the selector silently do nothing. openWindow(id:)
+        // works.
+        Window("Nastavení Czechator", id: Self.settingsWindowID) {
             SettingsView(model: model)
         }
+        .defaultSize(width: 460, height: 340)
+        .windowResizability(.contentSize)
     }
 }
 
@@ -26,24 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Opens the app's own Settings scene and brings it to the front.
-///
-/// `SettingsLink` alone is not enough here: `LSUIElement` makes this an
-/// accessory app, which is never the active one, so the window opened behind
-/// whatever the user was looking at — sometimes with nothing visible at all.
-/// Activating first puts it in front, and activating again afterwards covers
-/// the case where the window already existed and only needed raising.
-@MainActor
-private func openSettings() {
-    NSApplication.shared.activate(ignoringOtherApps: true)
-    NSApplication.shared.sendAction(
-        Selector(("showSettingsWindow:")), to: nil, from: nil)
-    NSApplication.shared.activate(ignoringOtherApps: true)
-}
-
 struct MenuContent: View {
 
     @ObservedObject var model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
@@ -72,7 +67,12 @@ struct MenuContent: View {
             }
 
             Divider()
-            Button("Nastavení…") { openSettings() }
+            Button("Nastavení…") {
+                openWindow(id: CzechatorApp.settingsWindowID)
+                // An accessory app is never frontmost, so without this the
+                // window opens behind whatever the user is looking at.
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
             Button("Ukončit") { NSApplication.shared.terminate(nil) }
         }
         // Opening the menu counts as acknowledging the error: the badge clears
