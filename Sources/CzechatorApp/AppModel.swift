@@ -43,9 +43,15 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Only ever reflects the current state.
+    ///
+    /// Reaching into the history for the newest failure looked equivalent, but
+    /// it kept the "last error" line on screen through every later success —
+    /// for as long as that entry stayed in the history. The detail belongs in
+    /// the history list, which is where it stays readable after acknowledgement.
     var lastErrorDetail: String? {
         if case .failed(let message) = state { return message }
-        return history.first(where: { !$0.succeeded })?.detail
+        return nil
     }
 
     func start() {
@@ -122,7 +128,8 @@ final class AppModel: ObservableObject {
                 state = .failed(message)
                 record(
                     HistoryEntry(
-                        preview: "chyba", originalText: "", succeeded: false, detail: message))
+                        preview: preview(of: message), originalText: "",
+                        succeeded: false, detail: message))
                 notifications.post(title: "Czechator", body: message)
             }
         }
