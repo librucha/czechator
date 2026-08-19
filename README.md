@@ -330,6 +330,10 @@ The version lives in one place, `Sources/CzechatorCore/Version.swift`. The
 Makefile stamps it into the bundle's `Info.plist` at build time, so the app, the
 CLI (`czechator --version`) and the About panel can never disagree.
 
+The CLI has no default subcommand — `czechator fix` and `czechator segments` are
+always spelled out, which leaves `--version` and `--help` at the root where they
+are expected.
+
 ## Contributing
 
 Issues and pull requests are welcome. Two things to know before you open one:
