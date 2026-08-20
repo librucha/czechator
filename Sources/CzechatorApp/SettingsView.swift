@@ -13,6 +13,8 @@ struct SettingsView: View {
     /// would then fail to register it on every launch and the hotkey would be
     /// silently dead.
     @State private var shortcutIsValid = true
+    @State private var triggerKind: TriggerKind = .combination
+    @State private var triggerModifier: ModifierKey = .rightCommand
 
     var body: some View {
         Form {
@@ -28,15 +30,39 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Zkratka") {
-                TextField("Zkratka", text: $shortcut, prompt: Text("cmd+ctrl+d"))
-                if let warning {
-                    Label(
-                        warning,
-                        systemImage: shortcutIsValid ? "exclamationmark.triangle" : "xmark.circle"
+            Section("Spouštění") {
+                Picker("Spouštěč", selection: $triggerKind) {
+                    Text("Klávesová zkratka").tag(TriggerKind.combination)
+                    Text("Dvojí stisk modifikátoru").tag(TriggerKind.doubleTap)
+                }
+
+                if triggerKind == .combination {
+                    TextField("Zkratka", text: $shortcut, prompt: Text("cmd+ctrl+d"))
+                    if let warning {
+                        Label(
+                            warning,
+                            systemImage: shortcutIsValid
+                                ? "exclamationmark.triangle" : "xmark.circle"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(shortcutIsValid ? .orange : .red)
+                    }
+                } else {
+                    Picker("Modifikátor", selection: $triggerModifier) {
+                        ForEach(ModifierKey.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    Text(
+                        "Jedno stisknutí projde beze změny dál, takže se žádné "
+                            + "aplikaci nic nebere."
                     )
                     .font(.caption)
-                    .foregroundStyle(shortcutIsValid ? .orange : .red)
+                    .foregroundStyle(.secondary)
+                    if model.needsAccessibility {
+                        Label(ErrorMessages.accessibilityRequired, systemImage: "lock")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        Button("Povolit v Nastavení systému…") { model.grantAccessibility() }
+                    }
                 }
             }
 
@@ -56,7 +82,7 @@ struct SettingsView: View {
                 Spacer()
                 Button("Uložit") { save() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!shortcutIsValid)
+                    .disabled(triggerKind == .combination && !shortcutIsValid)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -65,11 +91,20 @@ struct SettingsView: View {
         .frame(minWidth: 460, minHeight: 380)
         .onAppear { load() }
         .onChange(of: shortcut) { _, new in validate(new) }
+        .onChange(of: triggerKind) { _, new in
+            // Ask at the moment the user opts in, never at launch — that is
+            // when they understand what it is for. Read the permission itself
+            // rather than `needsAccessibility`, which only reflects the config
+            // as last saved and is still false here.
+            if new == .doubleTap, !model.accessibilityGranted { model.grantAccessibility() }
+        }
     }
 
     private func load() {
         activeProfile = model.activeProfileName
         shortcut = model.shortcutText
+        triggerKind = model.triggerKind
+        triggerModifier = model.triggerModifier
         validate(shortcut)
     }
 
@@ -100,6 +135,8 @@ struct SettingsView: View {
                 return
             }
         }
-        model.applySettings(activeProfile: activeProfile, shortcut: shortcut)
+        model.applySettings(
+            activeProfile: activeProfile, shortcut: shortcut,
+            triggerKind: triggerKind, triggerModifier: triggerModifier)
     }
 }

@@ -24,6 +24,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var state: RunState = .idle
     @Published private(set) var history: [HistoryEntry] = []
     @Published private(set) var startupProblem: String?
+    /// The double-tap trigger is selected but cannot run without the permission.
+    @Published private(set) var needsAccessibility = false
 
     private var started = false
     private var config: Config = .builtIn
@@ -62,28 +64,67 @@ final class AppModel: ObservableObject {
         reload()
     }
 
-    /// Re-reads the config and re-registers the hotkey. Called at launch and
+    /// Re-reads the config and re-installs the trigger. Called at launch and
     /// after the settings window saves.
     func reload() {
         do {
             config = try store.load()
-            guard let binding = config.hotkeys.first else {
-                startupProblem = "Konfigurace neobsahuje žádnou zkratku."
-                return
-            }
-            let spec = try ShortcutSpec.parse(binding.shortcut)
-            startupProblem =
-                spec.isCommonSystemShortcut
-                ? "Zkratka \(binding.shortcut) je běžná systémová zkratka "
-                    + "a v ostatních aplikacích přestane fungovat."
-                : nil
             trigger?.stop()
-            let manager = HotKeyManager(spec: spec)
-            try manager.start { [weak self] in self?.run() }
-            trigger = manager
+            trigger = nil
+            needsAccessibility = false
+
+            switch config.trigger.kind {
+            case .combination:
+                trigger = try startCombination()
+            case .doubleTap:
+                trigger = try startDoubleTap()
+            }
         } catch {
             startupProblem = ErrorMessages.describe(error)
         }
+    }
+
+    private func startCombination() throws -> (any Trigger)? {
+        guard let binding = config.hotkeys.first else {
+            startupProblem = "Konfigurace neobsahuje žádnou zkratku."
+            return nil
+        }
+        let spec = try ShortcutSpec.parse(binding.shortcut)
+        startupProblem =
+            spec.isCommonSystemShortcut
+            ? "Zkratka \(binding.shortcut) je běžná systémová zkratka "
+                + "a v ostatních aplikacích přestane fungovat."
+            : nil
+        let manager = HotKeyManager(spec: spec)
+        try manager.start { [weak self] in self?.run() }
+        return manager
+    }
+
+    private func startDoubleTap() throws -> (any Trigger)? {
+        // No silent fallback to the combination: the user chose the double tap
+        // precisely so that nothing gets stolen, and quietly registering a
+        // stealing shortcut would put them back in the problem they left.
+        guard AccessibilityPermission.isGranted else {
+            needsAccessibility = true
+            startupProblem = ErrorMessages.accessibilityRequired
+            return nil
+        }
+        startupProblem = nil
+        let monitor = DoubleTapMonitor(
+            modifier: config.trigger.modifier,
+            intervalMs: config.trigger.intervalMs,
+            maxHoldMs: config.trigger.maxHoldMs)
+        try monitor.start { [weak self] in self?.run() }
+        return monitor
+    }
+
+    /// Re-installs the trigger when the permission has appeared or vanished
+    /// since the last check — it can be revoked in System Settings while the
+    /// app runs, and opening the menu is the cheapest place to notice.
+    func refreshAccessibilityState() {
+        guard config.trigger.kind == .doubleTap else { return }
+        let granted = AccessibilityPermission.isGranted
+        if granted == needsAccessibility { reload() }
     }
 
     /// The error badge never survives a single click; the detail stays readable
@@ -169,9 +210,28 @@ final class AppModel: ObservableObject {
         return nil
     }
 
+    var triggerKind: TriggerKind { config.trigger.kind }
+    var triggerModifier: ModifierKey { config.trigger.modifier }
+    var accessibilityGranted: Bool { AccessibilityPermission.isGranted }
+
+    /// Asks for the permission and opens the pane. The system dialog only
+    /// appears the first time macOS is asked; the pane is what the user needs
+    /// on every later attempt, which is why both happen.
+    func grantAccessibility() {
+        AccessibilityPermission.request()
+        AccessibilityPermission.openSystemSettings()
+    }
+
     /// Writes through ConfigStore, which preserves keys the app does not know
-    /// about, then re-registers the hotkey.
-    func applySettings(activeProfile: String, shortcut: String) {
+    /// about, then re-installs the trigger.
+    ///
+    /// Everything the settings window can change goes through this one call:
+    /// two separate applies would mean two disk writes and two registrations
+    /// per save, with a window in between where the file is half updated.
+    func applySettings(
+        activeProfile: String, shortcut: String,
+        triggerKind: TriggerKind, triggerModifier: ModifierKey
+    ) {
         var updated = config
         updated.activeProfile = activeProfile
         if updated.hotkeys.isEmpty {
@@ -181,6 +241,8 @@ final class AppModel: ObservableObject {
         } else {
             updated.hotkeys[0].shortcut = shortcut
         }
+        updated.trigger.kind = triggerKind
+        updated.trigger.modifier = triggerModifier
         do {
             try store.save(updated)
             reload()

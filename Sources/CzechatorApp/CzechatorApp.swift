@@ -64,6 +64,9 @@ struct MenuContent: View {
             if let problem = model.startupProblem {
                 Divider()
                 Text(problem)
+                if model.needsAccessibility {
+                    Button("Povolit v Nastavení systému…") { model.grantAccessibility() }
+                }
             }
 
             if let detail = model.lastErrorDetail {
@@ -95,6 +98,9 @@ struct MenuContent: View {
         }
         // Opening the menu counts as acknowledging the error: the badge clears
         // but the detail stays readable in the history below.
-        .onAppear { model.acknowledgeError() }
+        .onAppear {
+            model.acknowledgeError()
+            model.refreshAccessibilityState()
+        }
     }
 }
