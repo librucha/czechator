@@ -13,9 +13,12 @@ public struct TriggerConfig: Sendable, Codable, Equatable {
     public var kind: TriggerKind
     public var modifier: ModifierKey
     /// Milliseconds allowed between the first release and the second press.
-    public var intervalMs: Int
+    ///
+    /// Settable only through an initialiser, so the clamped range cannot be
+    /// stepped around by assigning to the field afterwards.
+    public private(set) var intervalMs: Int
     /// Milliseconds a tap may last before it counts as holding the key.
-    public var maxHoldMs: Int
+    public private(set) var maxHoldMs: Int
 
     /// A hand-edited config can hold nonsense: 0 ms would make every press a
     /// double tap, and 10 s would make the trigger feel broken.

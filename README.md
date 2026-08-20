@@ -253,7 +253,9 @@ combination it registers, it holds in every application, for as long as the app
 runs. `Cmd+B` is deliberately not the default for exactly that reason —
 registering it would steal "bold" everywhere. Anything that parses works —
 `cmd+ctrl+d`, `cmd+alt+k`, `ctrl+shift+p` — and the settings window warns you
-about combinations likely to collide.
+about the single-⌘ combinations (`cmd+c`, `cmd+b`, …) that every application
+relies on. It cannot warn about the rest: nothing on macOS can enumerate what
+other applications have registered.
 
 For a developer that is often still not enough: the combinations worth reaching
 are already taken by an editor, a terminal, a launcher, or the keyboard-layout
@@ -278,6 +280,16 @@ modifier, and the key released within `maxHoldMs`.
 
 The thresholds are deliberately strict. A false trigger rewrites the clipboard
 when you did not ask for it, which is worse than a tap that did not register.
+
+If a double tap does nothing at all, the key codes are the thing to check
+first — they are the one part that cannot be verified without your keyboard:
+
+```sh
+CZECHATOR_TRIGGER_DEBUG=1 ./build/Czechator.app/Contents/MacOS/CzechatorApp &
+log stream --predicate 'subsystem == "cz.czechator.app"'
+```
+
+Right ⌘ should report `keyCode=54`, left ⌘ `55`, right ⌥ `61`, left ⌥ `58`.
 
 It costs the Accessibility permission, which is why `combination` stays the
 default and why the permission is only ever asked for at the moment you switch.

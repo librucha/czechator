@@ -1,6 +1,7 @@
 import AppKit
 import CzechatorCore
 import Foundation
+import os
 
 /// Watches modifier keys and fires on a deliberate double tap.
 ///
@@ -16,6 +17,15 @@ final class DoubleTapMonitor: Trigger {
         case accessibilityDenied
     }
 
+    /// Set `CZECHATOR_TRIGGER_DEBUG=1` to log every modifier event with its key
+    /// code. Reading it here rather than from the config keeps a diagnostic out
+    /// of the file the user edits — and out of the materialization rules.
+    static var debugEnabled: Bool {
+        ProcessInfo.processInfo.environment["CZECHATOR_TRIGGER_DEBUG"] == "1"
+    }
+
+    private static let log = Logger(subsystem: "cz.czechator.app", category: "trigger")
+
     private let modifier: ModifierKey
     private let debug: Bool
     private var detector: DoubleTapDetector
@@ -23,7 +33,10 @@ final class DoubleTapMonitor: Trigger {
     private var localMonitor: Any?
     private var action: (@MainActor () -> Void)?
 
-    init(modifier: ModifierKey, intervalMs: Int, maxHoldMs: Int, debug: Bool = false) {
+    init(
+        modifier: ModifierKey, intervalMs: Int, maxHoldMs: Int,
+        debug: Bool = DoubleTapMonitor.debugEnabled
+    ) {
         self.modifier = modifier
         self.debug = debug
         self.detector = DoubleTapDetector(
@@ -59,8 +72,13 @@ final class DoubleTapMonitor: Trigger {
     private func handle(_ event: NSEvent) {
         guard let translated = Self.translate(event, watching: modifier) else { return }
         if debug {
-            FileHandle.standardError.write(
-                Data("czechator: keyCode=\(event.keyCode) → \(translated)\n".utf8))
+            // os_log rather than stderr: an app launched by Launch Services has
+            // no terminal attached, and this is exactly the situation where the
+            // key codes need checking. Read it with
+            // `log stream --predicate 'subsystem == "cz.czechator.app"'`.
+            Self.log.info(
+                "keyCode=\(event.keyCode, privacy: .public) → \(String(describing: translated), privacy: .public)"
+            )
         }
         if detector.accept(translated, at: event.timestamp) {
             action?()

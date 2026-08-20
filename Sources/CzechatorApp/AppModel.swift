@@ -60,6 +60,14 @@ final class AppModel: ObservableObject {
         guard !started else { return }
         started = true
         notifications.onActivate = { [weak self] in self?.acknowledgeError() }
+        // The permission can be revoked in System Settings while the app runs.
+        // Coming back to the app is the other moment worth re-checking, besides
+        // opening the menu — the settings window can be open the whole time.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshAccessibilityState() }
+        }
         notifications.requestAuthorization()
         reload()
     }

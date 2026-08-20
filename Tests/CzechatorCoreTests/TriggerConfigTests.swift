@@ -34,8 +34,8 @@ import Testing
 }
 
 @Test func clampsValuesConstructedInCodeToo() {
-    // The decoder is not the only way in: the settings window builds one of
-    // these directly, and the range has to hold there as well.
+    // The decoder is not the only way in, and `intervalMs` is `private(set)`
+    // precisely so that this initialiser is the only other one.
     let config = TriggerConfig(
         kind: .doubleTap, modifier: .rightCommand, intervalMs: -5, maxHoldMs: 100_000)
     #expect(config.intervalMs == 10)

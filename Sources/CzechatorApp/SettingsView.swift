@@ -15,6 +15,10 @@ struct SettingsView: View {
     @State private var shortcutIsValid = true
     @State private var triggerKind: TriggerKind = .combination
     @State private var triggerModifier: ModifierKey = .rightCommand
+    /// `load()` assigns the trigger kind after the first render, which counts
+    /// as a change. Without this flag every open of the window would look like
+    /// the user picking the double tap, and prompt for the permission again.
+    @State private var loaded = false
 
     var body: some View {
         Form {
@@ -48,6 +52,18 @@ struct SettingsView: View {
                         .foregroundStyle(shortcutIsValid ? .orange : .red)
                     }
                 } else {
+                    if !shortcutIsValid {
+                        // The shortcut is stored either way, so it has to parse
+                        // either way — otherwise switching back later would
+                        // leave the app with no trigger at all.
+                        Label(
+                            "Uloženou zkratku se nepodařilo přečíst. Opravte ji "
+                                + "v režimu klávesové zkratky, jinak nepůjde uložit.",
+                            systemImage: "xmark.circle"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    }
                     Picker("Modifikátor", selection: $triggerModifier) {
                         ForEach(ModifierKey.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
@@ -82,7 +98,7 @@ struct SettingsView: View {
                 Spacer()
                 Button("Uložit") { save() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(triggerKind == .combination && !shortcutIsValid)
+                    .disabled(!shortcutIsValid)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -92,11 +108,12 @@ struct SettingsView: View {
         .onAppear { load() }
         .onChange(of: shortcut) { _, new in validate(new) }
         .onChange(of: triggerKind) { _, new in
-            // Ask at the moment the user opts in, never at launch — that is
-            // when they understand what it is for. Read the permission itself
-            // rather than `needsAccessibility`, which only reflects the config
-            // as last saved and is still false here.
-            if new == .doubleTap, !model.accessibilityGranted { model.grantAccessibility() }
+            // Ask at the moment the user opts in, never at launch and never on
+            // reopening a window that was already set to the double tap. Read
+            // the permission itself rather than `needsAccessibility`, which
+            // only reflects the config as last saved and is still false here.
+            guard loaded, new == .doubleTap, !model.accessibilityGranted else { return }
+            model.grantAccessibility()
         }
     }
 
@@ -106,6 +123,7 @@ struct SettingsView: View {
         triggerKind = model.triggerKind
         triggerModifier = model.triggerModifier
         validate(shortcut)
+        loaded = true
     }
 
     private func validate(_ text: String) {
