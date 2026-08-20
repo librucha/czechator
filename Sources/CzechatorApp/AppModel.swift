@@ -121,7 +121,8 @@ final class AppModel: ObservableObject {
         let monitor = DoubleTapMonitor(
             modifier: config.trigger.modifier,
             intervalMs: config.trigger.intervalMs,
-            maxHoldMs: config.trigger.maxHoldMs)
+            maxHoldMs: config.trigger.maxHoldMs,
+            debug: config.trigger.debug)
         try monitor.start { [weak self] in self?.run() }
         return monitor
     }

@@ -55,3 +55,19 @@ import Testing
     let data = try JSONEncoder().encode(original)
     #expect(try JSONDecoder().decode(TriggerConfig.self, from: data) == original)
 }
+
+@Test func debugIsOffByDefaultAndReadableFromTheFile() throws {
+    // The environment variable never reaches an app launched by Launch
+    // Services — measured on a running install, its process environment has no
+    // such variable. The config file is the only channel that arrives however
+    // the app was started, which is what makes it the right place for this.
+    #expect(TriggerConfig.builtIn.debug == false)
+
+    let on = try JSONDecoder().decode(
+        TriggerConfig.self, from: Data(#"{"kind":"doubleTap","debug":true}"#.utf8))
+    #expect(on.debug)
+
+    let absent = try JSONDecoder().decode(
+        TriggerConfig.self, from: Data(#"{"kind":"doubleTap"}"#.utf8))
+    #expect(absent.debug == false)
+}

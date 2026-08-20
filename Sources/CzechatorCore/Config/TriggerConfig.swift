@@ -19,21 +19,33 @@ public struct TriggerConfig: Sendable, Codable, Equatable {
     public private(set) var intervalMs: Int
     /// Milliseconds a tap may last before it counts as holding the key.
     public private(set) var maxHoldMs: Int
+    /// Logs every modifier event with its key code.
+    ///
+    /// Lives in the config rather than only in an environment variable because
+    /// an app launched from the Dock or Finder never sees the environment the
+    /// user set it in — which made the variable useless for the one case it
+    /// existed to diagnose.
+    public var debug: Bool
 
     /// A hand-edited config can hold nonsense: 0 ms would make every press a
     /// double tap, and 10 s would make the trigger feel broken.
     static let allowedMs = 10...2000
 
     public static let builtIn = TriggerConfig(
-        kind: .combination, modifier: .rightCommand, intervalMs: 300, maxHoldMs: 500)
+        kind: .combination, modifier: .rightCommand, intervalMs: 300, maxHoldMs: 500,
+        debug: false)
 
     /// Clamps here rather than only in `init(from:)`, so a value constructed in
     /// code cannot get past the range a decoded one could not.
-    public init(kind: TriggerKind, modifier: ModifierKey, intervalMs: Int, maxHoldMs: Int) {
+    public init(
+        kind: TriggerKind, modifier: ModifierKey, intervalMs: Int, maxHoldMs: Int,
+        debug: Bool = false
+    ) {
         self.kind = kind
         self.modifier = modifier
         self.intervalMs = intervalMs.clamped(to: Self.allowedMs)
         self.maxHoldMs = maxHoldMs.clamped(to: Self.allowedMs)
+        self.debug = debug
     }
 
     public init(from decoder: any Decoder) throws {
@@ -46,7 +58,8 @@ public struct TriggerConfig: Sendable, Codable, Equatable {
             intervalMs: try container.decodeIfPresent(Int.self, forKey: .intervalMs)
                 ?? defaults.intervalMs,
             maxHoldMs: try container.decodeIfPresent(Int.self, forKey: .maxHoldMs)
-                ?? defaults.maxHoldMs)
+                ?? defaults.maxHoldMs,
+            debug: try container.decodeIfPresent(Bool.self, forKey: .debug) ?? defaults.debug)
     }
 }
 

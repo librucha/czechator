@@ -17,10 +17,10 @@ final class DoubleTapMonitor: Trigger {
         case accessibilityDenied
     }
 
-    /// Set `CZECHATOR_TRIGGER_DEBUG=1` to log every modifier event with its key
-    /// code. Reading it here rather than from the config keeps a diagnostic out
-    /// of the file the user edits — and out of the materialization rules.
-    static var debugEnabled: Bool {
+    /// The environment variable is a convenience for running the binary from a
+    /// terminal; `trigger.debug` in the config is what works when the app was
+    /// launched from the Dock, which is the usual case.
+    static var debugFromEnvironment: Bool {
         ProcessInfo.processInfo.environment["CZECHATOR_TRIGGER_DEBUG"] == "1"
     }
 
@@ -35,10 +35,10 @@ final class DoubleTapMonitor: Trigger {
 
     init(
         modifier: ModifierKey, intervalMs: Int, maxHoldMs: Int,
-        debug: Bool = DoubleTapMonitor.debugEnabled
+        debug: Bool = false
     ) {
         self.modifier = modifier
-        self.debug = debug
+        self.debug = debug || Self.debugFromEnvironment
         self.detector = DoubleTapDetector(
             modifier: modifier, intervalMs: intervalMs, maxHoldMs: maxHoldMs)
     }
@@ -76,7 +76,9 @@ final class DoubleTapMonitor: Trigger {
             // no terminal attached, and this is exactly the situation where the
             // key codes need checking. Read it with
             // `log stream --predicate 'subsystem == "cz.czechator.app"'`.
-            Self.log.info(
+            // Notice, not info: `log stream` does not show info-level messages
+            // without `--info`, so the documented command showed nothing.
+            Self.log.notice(
                 "keyCode=\(event.keyCode, privacy: .public) → \(String(describing: translated), privacy: .public)"
             )
         }

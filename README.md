@@ -184,6 +184,7 @@ trigger:
   modifier: rightCommand   # rightCommand | leftCommand | rightOption | leftOption
   intervalMs: 300
   maxHoldMs: 500
+  debug: false
 
 limits:
   maxInputBytes: 51200
@@ -271,7 +272,13 @@ trigger:
   modifier: rightCommand   # rightCommand | leftCommand | rightOption | leftOption
   intervalMs: 300          # allowed gap between the two taps
   maxHoldMs: 500           # longer than this counts as holding, not tapping
+  debug: false             # log every modifier event with its key code
 ```
+
+**Upgrading an existing install does not switch this on.** The config file is
+written once and from then on overrides the built-in values, so a config that
+predates this feature has no `trigger:` block at all and keeps the combination.
+Choose the double tap in the settings window, or add the block by hand.
 
 The side matters: `rightCommand` and `leftCommand` are different keys, which is
 what keeps `⌘C ⌘V` typed with the left hand from ever looking like a double tap.
@@ -282,14 +289,19 @@ The thresholds are deliberately strict. A false trigger rewrites the clipboard
 when you did not ask for it, which is worse than a tap that did not register.
 
 If a double tap does nothing at all, the key codes are the thing to check
-first — they are the one part that cannot be verified without your keyboard:
+first — they are the one part that cannot be verified without your keyboard.
+Set `debug: true` under `trigger:`, restart the app, then watch:
 
 ```sh
-CZECHATOR_TRIGGER_DEBUG=1 ./build/Czechator.app/Contents/MacOS/CzechatorApp &
 log stream --predicate 'subsystem == "cz.czechator.app"'
 ```
 
 Right ⌘ should report `keyCode=54`, left ⌘ `55`, right ⌥ `61`, left ⌥ `58`.
+
+Setting `CZECHATOR_TRIGGER_DEBUG=1` does the same thing and is handier when you
+run the binary straight from a terminal — but an app launched from the Dock or
+by Finder never sees an environment you set in a shell, which is why the config
+key is the one that works in the normal case.
 
 It costs the Accessibility permission, which is why `combination` stays the
 default and why the permission is only ever asked for at the moment you switch.
