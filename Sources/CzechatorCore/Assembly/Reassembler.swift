@@ -9,9 +9,11 @@ public enum Reassembler {
     /// range for its replacement. Builds a new string rather than mutating in
     /// place, because String indices are not guaranteed to stay valid across
     /// mutations of the same value.
-    public static func splice(_ original: String,
-                              segments: [Segment],
-                              replacements: [String]) throws -> String {
+    public static func splice(
+        _ original: String,
+        segments: [Segment],
+        replacements: [String]
+    ) throws -> String {
         guard segments.count == replacements.count else {
             throw ReassemblyError.countMismatch(expected: segments.count, got: replacements.count)
         }

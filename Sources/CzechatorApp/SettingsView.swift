@@ -31,9 +31,12 @@ struct SettingsView: View {
             Section("Zkratka") {
                 TextField("Zkratka", text: $shortcut, prompt: Text("cmd+ctrl+d"))
                 if let warning {
-                    Label(warning, systemImage: shortcutIsValid ? "exclamationmark.triangle" : "xmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(shortcutIsValid ? .orange : .red)
+                    Label(
+                        warning,
+                        systemImage: shortcutIsValid ? "exclamationmark.triangle" : "xmark.circle"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(shortcutIsValid ? .orange : .red)
                 }
             }
 

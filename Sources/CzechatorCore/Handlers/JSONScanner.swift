@@ -169,8 +169,9 @@ public enum JSONScanner {
             guard index > start else { throw JSONScanError.unexpectedCharacter(offset: offset) }
 
             let token = text[start..<index]
-            guard token == "true" || token == "false" || token == "null"
-                || Parser.isJSONNumber(token)
+            guard
+                token == "true" || token == "false" || token == "null"
+                    || Parser.isJSONNumber(token)
             else {
                 throw JSONScanError.unexpectedCharacter(offset: startOffset)
             }

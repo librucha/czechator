@@ -45,7 +45,8 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
 
 @Test func correctsJSONValuesWithoutTouchingStructure() async throws {
     let text = #"{"id": "x", "popis": "Prilis zlutoucky kun"}"#
-    let result = try await pipeline(FakeProvider(transform: restore)).run(ClipboardInput(text: text))
+    let result = try await pipeline(FakeProvider(transform: restore)).run(
+        ClipboardInput(text: text))
     #expect(result.correctedText == #"{"id": "x", "popis": "Příliš žluťoučký kůň"}"#)
     #expect(result.formatID == "json")
 }
@@ -66,7 +67,8 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
             let count = prompt.user.split(separator: "\n").count
             let items = try NumberedList.decode(prompt.user, expectedCount: count)
             if attempts == 1 {
-                return NumberedList.encode(items.enumerated().map { $0.offset == 1 ? "spatne" : $0.element })
+                return NumberedList.encode(
+                    items.enumerated().map { $0.offset == 1 ? "spatne" : $0.element })
             }
             return NumberedList.encode(items)
         }
@@ -143,7 +145,10 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
         provider, limits: Limits(maxInputBytes: 51_200, maxBatchChars: 25)
     ).run(ClipboardInput(text: text))
 
-    #expect(result.correctedText == lines.map { $0.replacingOccurrences(of: "Prilis", with: "Příliš") }.joined(separator: "\n"))
+    #expect(
+        result.correctedText
+            == lines.map { $0.replacingOccurrences(of: "Prilis", with: "Příliš") }.joined(
+                separator: "\n"))
     #expect(result.segmentCount == 6)
     #expect(provider.callCount > 1)
 }
@@ -195,7 +200,9 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
 @Test func toleratesTrailingWhitespaceTheModelAddsToEveryLine() async throws {
     // qwen3 appends two spaces to each line (Markdown hard break); without
     // realignment the whole document would fail verification.
-    let sloppy = FakeProvider { $0.map { $0.replacingOccurrences(of: "Prilis", with: "Příliš") + "  " } }
+    let sloppy = FakeProvider {
+        $0.map { $0.replacingOccurrences(of: "Prilis", with: "Příliš") + "  " }
+    }
     let result = try await pipeline(sloppy).run(ClipboardInput(text: "Prilis zlutoucky kun"))
     #expect(result.correctedText == "Příliš zlutoucky kun")
 }
@@ -210,7 +217,9 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
     // The raw range is trimmed at source level, where "\n" is two characters,
     // so the segment text ends with a real newline only after unescaping.
     // Realignment must restore that, not the model's idea of it.
-    let sloppy = FakeProvider { $0.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) + "   " } }
+    let sloppy = FakeProvider {
+        $0.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) + "   " }
+    }
     let json = #"{"a": "Prilis zlutoucky kun\n"}"#
     let result = try await pipeline(sloppy).run(ClipboardInput(text: json))
     #expect(result.correctedText == json)
@@ -265,7 +274,9 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
 }
 
 @Test func verificationFollowsTheSamePolicy() {
-    let segments = [Segment(range: "x".startIndex..<"x".endIndex, raw: "x", text: "proc", kind: .plain)]
+    let segments = [
+        Segment(range: "x".startIndex..<"x".endIndex, raw: "x", text: "proc", kind: .plain)
+    ]
     func failing(_ policy: LetterCasePolicy) -> [Int] {
         DiacriticVerifier.failingIndices(
             segments: segments, corrections: ["Proč"], policy: policy)

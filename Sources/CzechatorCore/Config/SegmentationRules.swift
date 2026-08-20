@@ -21,7 +21,8 @@ public struct CommonRules: Sendable, Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = CommonRules.builtIn
         minLength = try c.decodeIfPresent(Int.self, forKey: .minLength) ?? d.minLength
-        requireLetters = try c.decodeIfPresent(Bool.self, forKey: .requireLetters) ?? d.requireLetters
+        requireLetters =
+            try c.decodeIfPresent(Bool.self, forKey: .requireLetters) ?? d.requireLetters
         skipPatterns = try c.decodeIfPresent([String].self, forKey: .skipPatterns) ?? d.skipPatterns
     }
 }
@@ -47,7 +48,8 @@ public struct HTMLRules: Sendable, Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = HTMLRules.builtIn
         skipElements = try c.decodeIfPresent([String].self, forKey: .skipElements) ?? d.skipElements
-        skipAttributes = try c.decodeIfPresent(Bool.self, forKey: .skipAttributes) ?? d.skipAttributes
+        skipAttributes =
+            try c.decodeIfPresent(Bool.self, forKey: .skipAttributes) ?? d.skipAttributes
         skipComments = try c.decodeIfPresent(Bool.self, forKey: .skipComments) ?? d.skipComments
     }
 }
@@ -67,8 +69,10 @@ public struct XMLRules: Sendable, Codable, Equatable {
         skipCDATA: false
     )
 
-    public init(skipElements: [String], skipAttributes: Bool, skipComments: Bool,
-                skipProcessingInstructions: Bool, skipCDATA: Bool) {
+    public init(
+        skipElements: [String], skipAttributes: Bool, skipComments: Bool,
+        skipProcessingInstructions: Bool, skipCDATA: Bool
+    ) {
         self.skipElements = skipElements
         self.skipAttributes = skipAttributes
         self.skipComments = skipComments
@@ -80,9 +84,11 @@ public struct XMLRules: Sendable, Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = XMLRules.builtIn
         skipElements = try c.decodeIfPresent([String].self, forKey: .skipElements) ?? d.skipElements
-        skipAttributes = try c.decodeIfPresent(Bool.self, forKey: .skipAttributes) ?? d.skipAttributes
+        skipAttributes =
+            try c.decodeIfPresent(Bool.self, forKey: .skipAttributes) ?? d.skipAttributes
         skipComments = try c.decodeIfPresent(Bool.self, forKey: .skipComments) ?? d.skipComments
-        skipProcessingInstructions = try c.decodeIfPresent(Bool.self, forKey: .skipProcessingInstructions)
+        skipProcessingInstructions =
+            try c.decodeIfPresent(Bool.self, forKey: .skipProcessingInstructions)
             ?? d.skipProcessingInstructions
         skipCDATA = try c.decodeIfPresent(Bool.self, forKey: .skipCDATA) ?? d.skipCDATA
     }
@@ -106,7 +112,8 @@ public struct JSONRules: Sendable, Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = JSONRules.builtIn
         skipKeys = try c.decodeIfPresent(Bool.self, forKey: .skipKeys) ?? d.skipKeys
-        skipValuesForKeys = try c.decodeIfPresent([String].self, forKey: .skipValuesForKeys)
+        skipValuesForKeys =
+            try c.decodeIfPresent([String].self, forKey: .skipValuesForKeys)
             ?? d.skipValuesForKeys
     }
 }
@@ -123,7 +130,8 @@ public struct PlainRules: Sendable, Codable, Equatable {
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        skipPatterns = try c.decodeIfPresent([String].self, forKey: .skipPatterns)
+        skipPatterns =
+            try c.decodeIfPresent([String].self, forKey: .skipPatterns)
             ?? PlainRules.builtIn.skipPatterns
     }
 }
@@ -139,8 +147,10 @@ public struct SegmentationRules: Sendable, Codable, Equatable {
         common: .builtIn, html: .builtIn, xml: .builtIn, json: .builtIn, plain: .builtIn
     )
 
-    public init(common: CommonRules, html: HTMLRules, xml: XMLRules,
-                json: JSONRules, plain: PlainRules) {
+    public init(
+        common: CommonRules, html: HTMLRules, xml: XMLRules,
+        json: JSONRules, plain: PlainRules
+    ) {
         self.common = common
         self.html = html
         self.xml = xml

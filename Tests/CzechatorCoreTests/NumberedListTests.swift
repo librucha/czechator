@@ -108,6 +108,7 @@ import Testing
 @Test func windowsJSONIsStillDetectedAsJSON() throws {
     let text = "{\r\n  \"nazev\": \"Prilis zlutoucky kun\"\r\n}"
     #expect(JSONHandler.confidence(for: ClipboardInput(text: text)) == 0.9)
-    #expect(try JSONHandler(rules: .builtIn).segments(in: text).map(\.text)
-        == ["Prilis zlutoucky kun"])
+    #expect(
+        try JSONHandler(rules: .builtIn).segments(in: text).map(\.text)
+            == ["Prilis zlutoucky kun"])
 }

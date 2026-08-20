@@ -17,7 +17,8 @@ import Testing
 }
 
 @Test func prefersHTMLEvenWhenRTFIsPresent() {
-    #expect(ClipboardTypes.choose(["public.rtf", "public.html", "public.utf8-plain-text"]) == .html)
+    #expect(
+        ClipboardTypes.choose(["public.rtf", "public.html", "public.utf8-plain-text"]) == .html)
 }
 
 @Test func prefersPlainTextOverRTF() {

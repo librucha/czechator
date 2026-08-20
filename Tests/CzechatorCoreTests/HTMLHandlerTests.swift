@@ -43,7 +43,8 @@ private func htmlHandler() throws -> HTMLHandler { try HTMLHandler(rules: .built
 }
 
 @Test func htmlConfidenceFavoursDeclaredHTML() {
-    #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<p>x</p>", uti: "public.html")) == 1.0)
+    #expect(
+        HTMLHandler.confidence(for: ClipboardInput(text: "<p>x</p>", uti: "public.html")) == 1.0)
     #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<div>x</div>")) == 0.75)
     #expect(HTMLHandler.confidence(for: ClipboardInput(text: "<r><a>x</a></r>")) == 0)
     #expect(HTMLHandler.id == "html")

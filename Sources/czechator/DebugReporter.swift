@@ -13,7 +13,8 @@ enum DebugReporter {
                     let answer = index < received.count ? received[index] : "(chybí)"
                     write("  \(index + 1). posláno: \(visible(item))")
                     write("     vráceno: \(visible(answer))")
-                    if item != answer, DiacriticFolding.fold(item) == DiacriticFolding.fold(answer) {
+                    if item != answer, DiacriticFolding.fold(item) == DiacriticFolding.fold(answer)
+                    {
                         write("     → jen diakritika, v pořádku")
                     }
                 }

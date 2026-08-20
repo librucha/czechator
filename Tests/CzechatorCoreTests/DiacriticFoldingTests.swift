@@ -1,14 +1,17 @@
 import Foundation
 import Testing
+
 @testable import CzechatorCore
 
 @Test func foldsAllCzechLowercaseDiacritics() {
-    #expect(DiacriticFolding.fold("příliš žluťoučký kůň úpěl ďábelské ódy")
+    #expect(
+        DiacriticFolding.fold("příliš žluťoučký kůň úpěl ďábelské ódy")
             == "prilis zlutoucky kun upel dabelske ody")
 }
 
 @Test func foldsUppercaseDiacritics() {
-    #expect(DiacriticFolding.fold("ČERVENÝ ŘEDKVIČKA ŽÍŽALA ÚŽASNÝ")
+    #expect(
+        DiacriticFolding.fold("ČERVENÝ ŘEDKVIČKA ŽÍŽALA ÚŽASNÝ")
             == "CERVENY REDKVICKA ZIZALA UZASNY")
 }
 

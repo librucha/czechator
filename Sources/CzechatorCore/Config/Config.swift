@@ -165,7 +165,8 @@ public struct Config: Sendable, Codable, Equatable {
             ?? defaults.segmentation
         features =
             try container.decodeIfPresent(FeatureFlags.self, forKey: .features) ?? defaults.features
-        prompt = try container.decodeIfPresent(PromptConfig.self, forKey: .prompt) ?? defaults.prompt
+        prompt =
+            try container.decodeIfPresent(PromptConfig.self, forKey: .prompt) ?? defaults.prompt
         trigger =
             try container.decodeIfPresent(TriggerConfig.self, forKey: .trigger) ?? defaults.trigger
     }

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import CzechatorCore
 
 private func segment(_ text: String, _ range: Range<String.Index>, raw: String? = nil) -> Segment {
@@ -12,8 +13,9 @@ private func segment(_ text: String, _ range: Range<String.Index>, raw: String? 
     let second = original.range(of: "svete")!
     let segments = [segment("ahoj", first), segment("svete", second)]
 
-    let result = try Reassembler.splice(original, segments: segments,
-                                        replacements: segments.map(\.raw))
+    let result = try Reassembler.splice(
+        original, segments: segments,
+        replacements: segments.map(\.raw))
     #expect(result == original)
 }
 
@@ -24,8 +26,9 @@ private func segment(_ text: String, _ range: Range<String.Index>, raw: String? 
         segment("svete", original.range(of: "svete")!),
     ]
 
-    let result = try Reassembler.splice(original, segments: segments,
-                                        replacements: ["ahoj", "světe"])
+    let result = try Reassembler.splice(
+        original, segments: segments,
+        replacements: ["ahoj", "světe"])
     #expect(result == "{\"a\": \"ahoj\", \"b\": \"světe\"}")
 }
 
@@ -36,8 +39,9 @@ private func segment(_ text: String, _ range: Range<String.Index>, raw: String? 
         segment("prvni", original.range(of: "prvni")!),
     ]
 
-    let result = try Reassembler.splice(original, segments: segments,
-                                        replacements: ["druhý", "první"])
+    let result = try Reassembler.splice(
+        original, segments: segments,
+        replacements: ["druhý", "první"])
     #expect(result == "první druhý")
 }
 
@@ -56,9 +60,10 @@ private func segment(_ text: String, _ range: Range<String.Index>, raw: String? 
     let b = original.index(original.startIndex, offsetBy: 2)..<original.endIndex
 
     #expect(throws: ReassemblyError.overlappingRanges) {
-        try Reassembler.splice(original,
-                               segments: [segment("abcd", a), segment("cdef", b)],
-                               replacements: ["X", "Y"])
+        try Reassembler.splice(
+            original,
+            segments: [segment("abcd", a), segment("cdef", b)],
+            replacements: ["X", "Y"])
     }
 }
 

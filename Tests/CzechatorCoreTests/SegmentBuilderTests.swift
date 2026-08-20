@@ -1,10 +1,13 @@
 import Foundation
 import Testing
+
 @testable import CzechatorCore
 
-private func build(_ text: String,
-                   rules: CommonRules = .builtIn,
-                   extra: [String] = []) throws -> [Segment] {
+private func build(
+    _ text: String,
+    rules: CommonRules = .builtIn,
+    extra: [String] = []
+) throws -> [Segment] {
     let prepared = try SegmentBuilder(common: rules, extraSkipPatterns: extra).prepared(for: text)
     return prepared.build(candidate: text.startIndex..<text.endIndex, kind: .plain) { String($0) }
 }
@@ -49,9 +52,11 @@ private func build(_ text: String,
 }
 
 @Test func mergesOverlappingExcludedSpans() throws {
-    let prepared = try SegmentBuilder(common: .builtIn,
-                                      extraSkipPatterns: [#"example\.com/\S*"#])
-        .prepared(for: "x https://example.com/a y")
+    let prepared = try SegmentBuilder(
+        common: .builtIn,
+        extraSkipPatterns: [#"example\.com/\S*"#]
+    )
+    .prepared(for: "x https://example.com/a y")
     #expect(prepared.excludedSpans.count == 1)
 }
 

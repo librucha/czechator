@@ -38,21 +38,25 @@ public struct SegmentBuilder: @unchecked Sendable {
         let documentSpans: [Range<String.Index>]
         switch scope {
         case .document:
-            documentSpans = PreparedSegmenter.merge(Self.matches(of: regexes, in: text, range: text.startIndex..<text.endIndex))
+            documentSpans = PreparedSegmenter.merge(
+                Self.matches(of: regexes, in: text, range: text.startIndex..<text.endIndex))
         case .candidate:
             documentSpans = []
         }
-        return PreparedSegmenter(text: text,
-                                 excludedSpans: documentSpans,
-                                 scope: scope,
-                                 regexes: regexes,
-                                 minLength: minLength,
-                                 requireLetters: requireLetters)
+        return PreparedSegmenter(
+            text: text,
+            excludedSpans: documentSpans,
+            scope: scope,
+            regexes: regexes,
+            minLength: minLength,
+            requireLetters: requireLetters)
     }
 
-    static func matches(of regexes: [NSRegularExpression],
-                        in text: String,
-                        range: Range<String.Index>) -> [Range<String.Index>] {
+    static func matches(
+        of regexes: [NSRegularExpression],
+        in text: String,
+        range: Range<String.Index>
+    ) -> [Range<String.Index>] {
         let nsRange = NSRange(range, in: text)
         var spans: [Range<String.Index>] = []
         for regex in regexes {
@@ -82,9 +86,11 @@ public struct PreparedSegmenter: @unchecked Sendable {
 
     /// Splits `candidate` around the excluded spans, trims and filters the
     /// remaining pieces, and turns each into a `Segment`.
-    public func build(candidate: Range<String.Index>,
-                      kind: SegmentKind,
-                      unescape: (Substring) -> String) -> [Segment] {
+    public func build(
+        candidate: Range<String.Index>,
+        kind: SegmentKind,
+        unescape: (Substring) -> String
+    ) -> [Segment] {
         let spans: [Range<String.Index>]
         switch scope {
         case .document:
@@ -130,7 +136,8 @@ public struct PreparedSegmenter: @unchecked Sendable {
         var merged: [Range<String.Index>] = []
         for span in sorted {
             if let last = merged.last, span.lowerBound <= last.upperBound {
-                merged[merged.count - 1] = last.lowerBound..<Swift.max(last.upperBound, span.upperBound)
+                merged[merged.count - 1] =
+                    last.lowerBound..<Swift.max(last.upperBound, span.upperBound)
             } else {
                 merged.append(span)
             }

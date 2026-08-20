@@ -75,15 +75,17 @@ private func texts(_ input: String, _ options: MarkupScanOptions = baseOptions) 
 @Test func returnsCommentBodyWhenCommentsAreNotSkipped() {
     var options = baseOptions
     options.skipComments = false
-    #expect(texts("<r><!-- poznamka v textu -->obsah</r>", options)
-        == [" poznamka v textu ", "obsah"])
+    #expect(
+        texts("<r><!-- poznamka v textu -->obsah</r>", options)
+            == [" poznamka v textu ", "obsah"])
 }
 
 @Test func returnsProcessingInstructionBodyWhenNotSkipped() {
     var options = baseOptions
     options.skipProcessingInstructions = false
-    #expect(texts("<?nejaka instrukce?><r>obsah</r>", options)
-        == ["nejaka instrukce", "obsah"])
+    #expect(
+        texts("<?nejaka instrukce?><r>obsah</r>", options)
+            == ["nejaka instrukce", "obsah"])
 }
 
 @Test func keepsWholeBodyOfUnterminatedCDATA() {

@@ -105,8 +105,9 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
         "aplikace:\n  databaze:\n    nazev: hlavni\n    popis: Ulozeni dat.",
     ]
     for text in configs {
-        #expect(registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
-                "neodmitnuto: \(text)")
+        #expect(
+            registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+            "neodmitnuto: \(text)")
     }
 }
 
@@ -129,8 +130,9 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
         "Kontakt:\nTelefon: 123 456 789\nMesto: Praha",
     ]
     for text in prose {
-        #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
-                "zbytecne odmitnuto: \(text)")
+        #expect(
+            !registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+            "zbytecne odmitnuto: \(text)")
     }
 }
 
@@ -142,8 +144,9 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
         "popis:\n  Aplikace slouzi ke sprave dokumentu",
     ]
     for text in blocks {
-        #expect(registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
-                "neodmitnuto: \(text)")
+        #expect(
+            registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+            "neodmitnuto: \(text)")
     }
 }
 
@@ -159,7 +162,8 @@ private func registry() throws -> FormatRegistry { try FormatRegistry(rules: .bu
         "obr.1: schema zapojeni",
     ]
     for text in prose {
-        #expect(!registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
-                "zbytecne odmitnuto: \(text)")
+        #expect(
+            !registry.looksStructuredButUnclaimed(ClipboardInput(text: text)),
+            "zbytecne odmitnuto: \(text)")
     }
 }
