@@ -2,6 +2,13 @@
 /// and English to the compiler.
 public enum ErrorMessages {
 
+    /// Shown in the menu and in the settings window when the double-tap trigger
+    /// is selected but the permission that makes it possible has not been
+    /// granted.
+    public static let accessibilityRequired =
+        "Dvojí stisk potřebuje oprávnění Zpřístupnění (Accessibility), "
+        + "aby mohl číst stisky kláves. Bez něj se zkratka nespustí."
+
     public static func describe(_ error: any Error) -> String {
         switch error {
         case let error as PipelineError:

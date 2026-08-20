@@ -54,3 +54,11 @@ import Testing
     struct Weird: Error {}
     #expect(!ErrorMessages.describe(Weird()).isEmpty)
 }
+
+@Test func explainsWhyAccessibilityIsNeeded() {
+    let message = ErrorMessages.accessibilityRequired
+    // The user has to understand what to grant and why, from the menu alone.
+    #expect(message.contains("Dvojí stisk"))
+    #expect(message.contains("Zpřístupnění"))
+    #expect(message.contains("Accessibility"))
+}
