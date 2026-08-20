@@ -7,7 +7,8 @@ import PackageDescription
         .executable(name: "CzechatorApp", targets: ["CzechatorApp"])
     ]
     let appTargets: [Target] = [
-        .executableTarget(name: "CzechatorApp", dependencies: ["CzechatorCore"])
+        .executableTarget(name: "CzechatorApp", dependencies: ["CzechatorCore"]),
+        .testTarget(name: "CzechatorAppTests", dependencies: ["CzechatorApp"]),
     ]
 #else
     let appProducts: [Product] = []

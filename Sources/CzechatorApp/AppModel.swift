@@ -29,13 +29,27 @@ final class AppModel: ObservableObject {
 
     private var started = false
     private var config: Config = .builtIn
-    private let store = ConfigStore(url: ConfigStore.defaultURL())
+    private let store: ConfigStore
+    /// Injected so that the trigger rules can be tested without asking the
+    /// system for a permission the test machine may or may not have granted.
+    private let accessibilityGranted: @MainActor () -> Bool
+    private let makeTrigger: @MainActor (TriggerPlan) -> any Trigger
     private var trigger: (any Trigger)?
     private let notifications = NotificationCenterBridge()
     private let source = PasteboardSource()
     private let sink = PasteboardSink()
 
-    private init() {}
+    init(
+        store: ConfigStore = ConfigStore(url: ConfigStore.defaultURL()),
+        accessibilityGranted: @escaping @MainActor () -> Bool = {
+            AccessibilityPermission.isGranted
+        },
+        makeTrigger: @escaping @MainActor (TriggerPlan) -> any Trigger = makeLiveTrigger
+    ) {
+        self.store = store
+        self.accessibilityGranted = accessibilityGranted
+        self.makeTrigger = makeTrigger
+    }
 
     var iconName: String {
         switch state {
@@ -103,28 +117,24 @@ final class AppModel: ObservableObject {
             ? "Zkratka \(binding.shortcut) je běžná systémová zkratka "
                 + "a v ostatních aplikacích přestane fungovat."
             : nil
-        let manager = HotKeyManager(spec: spec)
-        try manager.start { [weak self] in self?.run() }
-        return manager
+        let trigger = makeTrigger(.combination(spec))
+        try trigger.start { [weak self] in self?.run() }
+        return trigger
     }
 
     private func startDoubleTap() throws -> (any Trigger)? {
         // No silent fallback to the combination: the user chose the double tap
         // precisely so that nothing gets stolen, and quietly registering a
         // stealing shortcut would put them back in the problem they left.
-        guard AccessibilityPermission.isGranted else {
+        guard accessibilityGranted() else {
             needsAccessibility = true
             startupProblem = ErrorMessages.accessibilityRequired
             return nil
         }
         startupProblem = nil
-        let monitor = DoubleTapMonitor(
-            modifier: config.trigger.modifier,
-            intervalMs: config.trigger.intervalMs,
-            maxHoldMs: config.trigger.maxHoldMs,
-            debug: config.trigger.debug)
-        try monitor.start { [weak self] in self?.run() }
-        return monitor
+        let trigger = makeTrigger(.doubleTap(config.trigger))
+        try trigger.start { [weak self] in self?.run() }
+        return trigger
     }
 
     /// Re-installs the trigger when the permission has appeared or vanished
@@ -132,8 +142,7 @@ final class AppModel: ObservableObject {
     /// app runs, and opening the menu is the cheapest place to notice.
     func refreshAccessibilityState() {
         guard config.trigger.kind == .doubleTap else { return }
-        let granted = AccessibilityPermission.isGranted
-        if granted == needsAccessibility { reload() }
+        if accessibilityGranted() == needsAccessibility { reload() }
     }
 
     /// The error badge never survives a single click; the detail stays readable
@@ -221,7 +230,7 @@ final class AppModel: ObservableObject {
 
     var triggerKind: TriggerKind { config.trigger.kind }
     var triggerModifier: ModifierKey { config.trigger.modifier }
-    var accessibilityGranted: Bool { AccessibilityPermission.isGranted }
+    var isAccessibilityGranted: Bool { accessibilityGranted() }
 
     /// Asks for the permission and opens the pane. The system dialog only
     /// appears the first time macOS is asked; the pane is what the user needs

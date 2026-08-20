@@ -396,6 +396,20 @@ places, notably how JSON escapes and HTML entities are tracked (by grapheme
 position rather than by flag) and everything around whitespace and letter case,
 none of which the design anticipated.
 
+### Testing
+
+`make test`, never `swift test` — the flags that let swift-testing run under
+Command Line Tools live in the Makefile.
+
+`CzechatorCoreTests` covers the portable core. `CzechatorAppTests` covers the
+macOS layer by injecting the parts that touch the system: `AppModel` takes its
+config store, its permission check and its trigger factory from outside, so the
+rules for choosing and replacing a trigger are tested without registering a
+global hotkey or asking macOS for anything.
+
+What is still not covered is the SwiftUI layer — the settings window's own
+behaviour is verified by review, not by tests.
+
 ## Versioning
 
 The version lives in one place, `Sources/CzechatorCore/Version.swift`. The

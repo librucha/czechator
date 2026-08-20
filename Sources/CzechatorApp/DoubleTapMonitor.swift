@@ -88,7 +88,13 @@ final class DoubleTapMonitor: Trigger {
     }
 
     /// Turns an AppKit event into the vocabulary the detector understands.
-    static func translate(_ event: NSEvent, watching modifier: ModifierKey) -> DoubleTapEvent? {
+    ///
+    /// `nonisolated` because it reads nothing but its arguments — it inherited
+    /// the class's main-actor isolation for no reason, which also made it
+    /// untestable from a synchronous test.
+    nonisolated static func translate(_ event: NSEvent, watching modifier: ModifierKey)
+        -> DoubleTapEvent?
+    {
         switch event.type {
         case .keyDown:
             return .otherKeyDown

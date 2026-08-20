@@ -112,7 +112,7 @@ struct SettingsView: View {
             // reopening a window that was already set to the double tap. Read
             // the permission itself rather than `needsAccessibility`, which
             // only reflects the config as last saved and is still false here.
-            guard loaded, new == .doubleTap, !model.accessibilityGranted else { return }
+            guard loaded, new == .doubleTap, !model.isAccessibilityGranted else { return }
             model.grantAccessibility()
         }
     }
