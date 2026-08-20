@@ -80,7 +80,7 @@ final class AppModel: ObservableObject {
                 trigger = try startDoubleTap()
             }
         } catch {
-            startupProblem = ErrorMessages.describe(error)
+            startupProblem = AppErrorMessages.describe(error)
         }
     }
 
@@ -247,7 +247,7 @@ final class AppModel: ObservableObject {
             try store.save(updated)
             reload()
         } catch {
-            startupProblem = ErrorMessages.describe(error)
+            startupProblem = AppErrorMessages.describe(error)
         }
     }
 
