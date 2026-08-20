@@ -42,7 +42,8 @@ than it was.
 
 ## Features
 
-- **Global hotkey** — `Cmd+Ctrl+D` by default, configurable.
+- **Two ways to trigger it** — a global hotkey (`Cmd+Ctrl+D` by default), or
+  a double tap of the right ⌘ that takes no shortcut away from anything.
 - **Structure-aware.** Plain text, Markdown, JSON, XML and HTML. In structured
   formats only text nodes are corrected; the document is reassembled from the
   original bytes around them.
@@ -178,6 +179,12 @@ hotkeys:
     source: clipboard
     sink: clipboard
 
+trigger:
+  kind: combination        # combination | doubleTap
+  modifier: rightCommand   # rightCommand | leftCommand | rightOption | leftOption
+  intervalMs: 300
+  maxHoldMs: 500
+
 limits:
   maxInputBytes: 51200
   maxBatchChars: 1500
@@ -236,12 +243,46 @@ Enter the key in the settings window and it goes to the Keychain. The key is
 read lazily, right before the request is built, so nothing logged or kept in
 history can contain it.
 
-### Shortcut
+### Trigger
 
-`Cmd+B` is deliberately **not** the default. Registering it globally would steal
-"bold" from every application on the system. Anything that parses works —
+There are two ways to start a correction, and they trade off against each other.
+
+**A key combination** (the default) needs no permission and works the moment you
+install the app. Its cost is that a global hotkey is unconditional: whatever
+combination it registers, it holds in every application, for as long as the app
+runs. `Cmd+B` is deliberately not the default for exactly that reason —
+registering it would steal "bold" everywhere. Anything that parses works —
 `cmd+ctrl+d`, `cmd+alt+k`, `ctrl+shift+p` — and the settings window warns you
-about shortcuts that are likely to collide.
+about combinations likely to collide.
+
+For a developer that is often still not enough: the combinations worth reaching
+are already taken by an editor, a terminal, a launcher, or the keyboard-layout
+switcher.
+
+**A double tap of a modifier key** steals nothing, because a single press passes
+straight through. Tap right ⌘ twice and the clipboard gets fixed; press it once
+and it behaves exactly as it always did.
+
+```yaml
+trigger:
+  kind: doubleTap          # combination | doubleTap
+  modifier: rightCommand   # rightCommand | leftCommand | rightOption | leftOption
+  intervalMs: 300          # allowed gap between the two taps
+  maxHoldMs: 500           # longer than this counts as holding, not tapping
+```
+
+The side matters: `rightCommand` and `leftCommand` are different keys, which is
+what keeps `⌘C ⌘V` typed with the left hand from ever looking like a double tap.
+A tap only counts if nothing else happened during it — no other key, no other
+modifier, and the key released within `maxHoldMs`.
+
+The thresholds are deliberately strict. A false trigger rewrites the clipboard
+when you did not ask for it, which is worse than a tap that did not register.
+
+It costs the Accessibility permission, which is why `combination` stays the
+default and why the permission is only ever asked for at the moment you switch.
+There is no silent fallback: if the permission is missing, the menu says so and
+nothing is registered, rather than quietly going back to stealing a combination.
 
 ## Tuning segmentation
 
@@ -271,6 +312,13 @@ rebuild.
 
 ## Known limitations
 
+- **The Accessibility permission has to be granted again after every build.**
+  It is tied to the code signature, and the ad-hoc signing this project uses
+  produces a new one each time. The stale entry usually has to be removed from
+  the list in System Settings by hand before the new one takes effect. This
+  affects the double-tap trigger only.
+- **Neither trigger fires into a secure input field.** While a password field
+  has focus, macOS delivers no key events to any application.
 - **Wrong diacritics are not detected.** Verification proves nothing *but*
   diacritics changed; it cannot prove the diacritics are right. `bít` and `byt`
   fold identically, so picking the wrong one passes. That is a model-quality

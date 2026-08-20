@@ -9,14 +9,20 @@ public enum ModifierKey: String, Sendable, Codable, Equatable, CaseIterable {
     case rightOption
     case leftOption
 
-    /// Virtual key codes from Carbon's `Events.h`, which `NSEvent.keyCode`
-    /// reports for modifier changes.
+    /// Virtual key codes as `NSEvent.keyCode` reports them for modifier
+    /// changes.
+    ///
+    /// Written out rather than imported: these come from Carbon's `Events.h`,
+    /// which this module must not depend on if the core is to stay portable.
+    /// Checked against the macOS 26.5 SDK — `kVK_RightCommand` 0x36,
+    /// `kVK_Command` 0x37, `kVK_Option` 0x3A, `kVK_RightOption` 0x3D. Note that
+    /// the unqualified names are the left-hand keys.
     public var keyCode: Int {
         switch self {
-        case .rightCommand: return 54
-        case .leftCommand: return 55
-        case .rightOption: return 61
-        case .leftOption: return 58
+        case .rightCommand: return 0x36
+        case .leftCommand: return 0x37
+        case .rightOption: return 0x3D
+        case .leftOption: return 0x3A
         }
     }
 
