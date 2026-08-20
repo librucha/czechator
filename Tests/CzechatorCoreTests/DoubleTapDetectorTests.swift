@@ -125,15 +125,69 @@ private func fires(_ steps: [(DoubleTapEvent, TimeInterval)], into d: inout Doub
                 (.modifierReleased(.rightCommand), 0.80),
             ], into: &atLimit) == 1)
 
-    var pastLimit = detector(intervalMs: 300, maxHoldMs: 500)
+    // One tick past the interval: the first tap is clean and short, only the
+    // gap is too wide. Without the separate case this half re-tested maxHoldMs.
+    var pastInterval = detector(intervalMs: 250, maxHoldMs: 500)
     #expect(
         fires(
             [
                 (.modifierPressed(.rightCommand), 0.0),
-                (.modifierReleased(.rightCommand), 0.501),
+                (.modifierReleased(.rightCommand), 0.25),
+                (.modifierPressed(.rightCommand), 0.5009765625),
+                (.modifierReleased(.rightCommand), 0.55),
+            ], into: &pastInterval) == 0)
+
+    // One tick past the hold: the gap is fine, the first press was held too
+    // long to count as a tap.
+    var pastHold = detector(intervalMs: 250, maxHoldMs: 500)
+    #expect(
+        fires(
+            [
+                (.modifierPressed(.rightCommand), 0.0),
+                (.modifierReleased(.rightCommand), 0.5009765625),
                 (.modifierPressed(.rightCommand), 0.6),
                 (.modifierReleased(.rightCommand), 0.65),
-            ], into: &pastLimit) == 0)
+            ], into: &pastHold) == 0)
+}
+
+@Test func aKeyPressedBetweenTheTapsCancelsTheFirst() {
+    // The gap is not a free window: typing in it means the first tap was part
+    // of something else.
+    var d = detector()
+    let count = fires(
+        [
+            (.modifierPressed(.rightCommand), 0.00),
+            (.modifierReleased(.rightCommand), 0.05),
+            (.otherKeyDown, 0.08),
+            (.modifierPressed(.rightCommand), 0.15),
+            (.modifierReleased(.rightCommand), 0.20),
+        ], into: &d)
+    #expect(count == 0)
+}
+
+@Test func aKeyPressedDuringTheSecondTapCancelsIt() {
+    var d = detector()
+    let count = fires(
+        [
+            (.modifierPressed(.rightCommand), 0.00),
+            (.modifierReleased(.rightCommand), 0.05),
+            (.modifierPressed(.rightCommand), 0.15),
+            (.otherKeyDown, 0.17),
+            (.modifierReleased(.rightCommand), 0.20),
+        ], into: &d)
+    #expect(count == 0)
+}
+
+@Test func aSecondTapHeldTooLongDoesNotFire() {
+    var d = detector(maxHoldMs: 500)
+    let count = fires(
+        [
+            (.modifierPressed(.rightCommand), 0.00),
+            (.modifierReleased(.rightCommand), 0.05),
+            (.modifierPressed(.rightCommand), 0.15),
+            (.modifierReleased(.rightCommand), 0.80),
+        ], into: &d)
+    #expect(count == 0)
 }
 
 @Test func unexpectedOrderResetsInsteadOfGuessing() {
