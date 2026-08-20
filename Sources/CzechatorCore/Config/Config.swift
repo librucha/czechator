@@ -105,6 +105,7 @@ public struct Config: Sendable, Codable, Equatable {
     public var segmentation: SegmentationRules
     public var features: FeatureFlags
     public var prompt: PromptConfig
+    public var trigger: TriggerConfig
 
     public static let builtIn = Config(
         activeProfile: "local",
@@ -127,13 +128,14 @@ public struct Config: Sendable, Codable, Equatable {
         limits: .builtIn,
         segmentation: .builtIn,
         features: .builtIn,
-        prompt: .builtIn
+        prompt: .builtIn,
+        trigger: .builtIn
     )
 
     public init(
         activeProfile: String, profiles: [String: Profile], hotkeys: [HotkeyBinding],
         limits: Limits, segmentation: SegmentationRules,
-        features: FeatureFlags, prompt: PromptConfig
+        features: FeatureFlags, prompt: PromptConfig, trigger: TriggerConfig
     ) {
         self.activeProfile = activeProfile
         self.profiles = profiles
@@ -142,6 +144,7 @@ public struct Config: Sendable, Codable, Equatable {
         self.segmentation = segmentation
         self.features = features
         self.prompt = prompt
+        self.trigger = trigger
     }
 
     public init(from decoder: any Decoder) throws {
@@ -163,6 +166,8 @@ public struct Config: Sendable, Codable, Equatable {
         features =
             try container.decodeIfPresent(FeatureFlags.self, forKey: .features) ?? defaults.features
         prompt = try container.decodeIfPresent(PromptConfig.self, forKey: .prompt) ?? defaults.prompt
+        trigger =
+            try container.decodeIfPresent(TriggerConfig.self, forKey: .trigger) ?? defaults.trigger
     }
 
     /// The profile the tool will actually use.

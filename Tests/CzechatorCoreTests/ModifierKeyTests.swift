@@ -31,7 +31,7 @@ import Testing
     #expect(ModifierKey.rightCommand.label == "pravý ⌘")
 }
 
-@Test func roundTripsThroughJSON() throws {
+@Test func modifierKeyRoundTripsThroughJSON() throws {
     for modifier in ModifierKey.allCases {
         let data = try JSONEncoder().encode(modifier)
         #expect(try JSONDecoder().decode(ModifierKey.self, from: data) == modifier)
