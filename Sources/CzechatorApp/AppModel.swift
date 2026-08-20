@@ -28,7 +28,7 @@ final class AppModel: ObservableObject {
     private var started = false
     private var config: Config = .builtIn
     private let store = ConfigStore(url: ConfigStore.defaultURL())
-    private let hotKeys = HotKeyManager()
+    private var trigger: (any Trigger)?
     private let notifications = NotificationCenterBridge()
     private let source = PasteboardSource()
     private let sink = PasteboardSink()
@@ -77,9 +77,10 @@ final class AppModel: ObservableObject {
                 ? "Zkratka \(binding.shortcut) je běžná systémová zkratka "
                     + "a v ostatních aplikacích přestane fungovat."
                 : nil
-            try hotKeys.register(spec) { [weak self] in
-                Task { @MainActor in self?.run() }
-            }
+            trigger?.stop()
+            let manager = HotKeyManager(spec: spec)
+            try manager.start { [weak self] in self?.run() }
+            trigger = manager
         } catch {
             startupProblem = ErrorMessages.describe(error)
         }

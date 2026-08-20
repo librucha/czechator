@@ -4,18 +4,24 @@ import CzechatorCore
 
 /// Registers a system-wide hotkey through Carbon's `RegisterEventHotKey`.
 ///
-/// Deliberately not `CGEventTap`: Carbon registration needs no Accessibility
-/// permission, so the app works on first launch without any TCC dialog.
-final class HotKeyManager {
+/// Needs no Accessibility permission, which is why this stays the default
+/// trigger: the app works on first launch without any TCC dialog. Its cost is
+/// that the combination is held unconditionally — see `DoubleTapMonitor` for
+/// the alternative that steals nothing.
+@MainActor
+final class HotKeyManager: Trigger {
 
     enum HotKeyError: Error, Equatable {
         case unsupportedKey(String)
         case registrationFailed(OSStatus)
     }
 
+    private let spec: ShortcutSpec
     private var reference: EventHotKeyRef?
     private var handlerReference: EventHandlerRef?
-    private var action: (@Sendable () -> Void)?
+    private var action: (@MainActor () -> Void)?
+
+    init(spec: ShortcutSpec) { self.spec = spec }
 
     private static let keyCodes: [String: Int] = [
         "a": kVK_ANSI_A, "b": kVK_ANSI_B, "c": kVK_ANSI_C, "d": kVK_ANSI_D,
@@ -30,12 +36,12 @@ final class HotKeyManager {
         "8": kVK_ANSI_8, "9": kVK_ANSI_9,
     ]
 
-    func register(_ spec: ShortcutSpec, handler: @escaping @Sendable () -> Void) throws {
-        unregisterAll()
+    func start(_ action: @escaping @MainActor () -> Void) throws {
+        stop()
         guard let code = Self.keyCodes[spec.key] else {
             throw HotKeyError.unsupportedKey(spec.key)
         }
-        action = handler
+        self.action = action
 
         var carbonModifiers: UInt32 = 0
         if spec.modifiers.contains(.cmd) { carbonModifiers |= UInt32(cmdKey) }
@@ -50,7 +56,8 @@ final class HotKeyManager {
         let callback: EventHandlerUPP = { _, _, userData in
             guard let userData else { return noErr }
             let manager = Unmanaged<HotKeyManager>.fromOpaque(userData).takeUnretainedValue()
-            manager.action?()
+            // Carbon delivers hotkey events on the main run loop.
+            MainActor.assumeIsolated { manager.action?() }
             return noErr
         }
 
@@ -62,7 +69,7 @@ final class HotKeyManager {
             Unmanaged.passUnretained(self).toOpaque(),
             &handlerReference)
         guard installed == noErr else {
-            unregisterAll()
+            stop()
             throw HotKeyError.registrationFailed(installed)
         }
 
@@ -80,18 +87,16 @@ final class HotKeyManager {
             // already installed at this point, and the usual cause is another
             // application holding the shortcut, which the user will want to fix
             // and retry.
-            unregisterAll()
+            stop()
             throw HotKeyError.registrationFailed(registered)
         }
     }
 
-    func unregisterAll() {
+    func stop() {
         if let reference { UnregisterEventHotKey(reference) }
         reference = nil
         if let handlerReference { RemoveEventHandler(handlerReference) }
         handlerReference = nil
         action = nil
     }
-
-    deinit { unregisterAll() }
 }
