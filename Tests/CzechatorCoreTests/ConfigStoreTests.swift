@@ -165,3 +165,40 @@ private func write(_ yaml: String, to url: URL) throws {
     #expect(written.contains("override"))
     #expect(!written.contains("prompt: {}"))
 }
+
+@Test func upgradingAnOlderInstallKeepsTheCombinationTrigger() throws {
+    // The config file is materialized on first run and from then on overrides
+    // the built-in values. A config written before the trigger existed has no
+    // trigger block at all, and adding one must not change how that install
+    // behaves — the same materialization rule that once kept a safety default
+    // from ever reaching an existing installation.
+    let (store, url) = temporaryStore()
+    try write(
+        """
+        activeProfile: local
+        profiles:
+          local:
+            kind: ollama
+            endpoint: http://localhost:11434
+            model: qwen3:4b-instruct
+            temperature: 0
+            timeoutSeconds: 30
+        hotkeys:
+          - shortcut: cmd+ctrl+d
+            source: clipboard
+            sink: clipboard
+        """, to: url)
+
+    let loaded = try store.load()
+    #expect(loaded.trigger.kind == .combination)
+    #expect(loaded.trigger.modifier == .rightCommand)
+    #expect(loaded.trigger.intervalMs == 300)
+    #expect(loaded.trigger.maxHoldMs == 500)
+
+    // And once anything is saved, the block becomes visible so the user can see
+    // there is something to edit.
+    try store.save(loaded)
+    let saved = try String(contentsOf: url, encoding: .utf8)
+    #expect(saved.contains("trigger:"))
+    #expect(saved.contains("kind: combination"))
+}
