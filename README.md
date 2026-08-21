@@ -304,10 +304,10 @@ by Finder never sees an environment you set in a shell, which is why the config
 key is the one that works in the normal case.
 
 It costs the Accessibility permission, which is why `combination` stays the
-default. Nothing asks for it on its own: choose the double tap, save, and the
-menu will tell you what is missing with a button that asks. The first press
-raises the system's own dialog — which is where you accept or decline — and a
-later press opens the Accessibility pane, because macOS shows that dialog only
+default. Choose the double tap and save, and macOS asks there and then — its
+own dialog, where you accept or decline. Nothing asks at any other time: not on
+launch, not on opening the settings window. If you decline, the menu keeps a
+button that opens the Accessibility pane, since macOS shows that dialog only
 once per application.
 There is no silent fallback: if the permission is missing, the menu says so and
 nothing is registered, rather than quietly going back to stealing a combination.

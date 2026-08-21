@@ -314,6 +314,11 @@ final class AppModel: ObservableObject {
         do {
             try store.save(updated)
             reload()
+            // Saving is the moment to ask: the user has just chosen the double
+            // tap, so the dialog arrives with its reason obvious. Left to the
+            // button alone, they would have to go looking for something they do
+            // not yet know exists.
+            if needsAccessibility { grantAccessibility() }
         } catch {
             startupProblem = AppErrorMessages.describe(error)
         }

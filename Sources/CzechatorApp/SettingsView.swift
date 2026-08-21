@@ -5,6 +5,8 @@ struct SettingsView: View {
 
     @ObservedObject var model: AppModel
 
+    @Environment(\.dismiss) private var dismiss
+
     /// Everything the window can change, plus the rules that follow from it.
     /// See SettingsFormState — the decisions live there so they can be tested.
     @State private var form = SettingsFormState()
@@ -129,5 +131,8 @@ struct SettingsView: View {
         model.applySettings(
             activeProfile: form.activeProfile, shortcut: form.shortcut,
             triggerKind: form.triggerKind, triggerModifier: form.triggerModifier)
+        // Saving is the end of the errand. Anything that went wrong is waiting
+        // in the menu, which is where the app reports for the rest of its life.
+        dismiss()
     }
 }

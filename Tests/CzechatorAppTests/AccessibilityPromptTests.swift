@@ -40,19 +40,78 @@ import Testing
 }
 
 @MainActor
-@Test func nothingIsAskedWithoutTheUserAskingForIt() throws {
-    // Reloading, re-checking the permission, saving — none of it may raise a
-    // system dialog. Only the button does.
+@Test func savingTheDoubleTapAsksStraightAway() throws {
+    // Saving is the moment to ask: the user has just chosen the double tap, so
+    // the dialog arrives with its reason obvious. Leaving it to a button they
+    // have not looked for yet means they never find out where to go.
+    let harness = try Harness(baseConfig)
+    harness.granted = false
+    let model = harness.startedModel()
+    #expect(harness.permissionRequests == 0)
+
+    model.applySettings(
+        activeProfile: "local", shortcut: "cmd+ctrl+d",
+        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+
+    #expect(harness.permissionRequests == 1)
+    #expect(harness.settingsOpened == 0)
+}
+
+@MainActor
+@Test func savingStaysQuietWhenThePermissionIsAlreadyThere() throws {
+    let harness = try Harness(baseConfig)
+    let model = harness.startedModel()
+
+    model.applySettings(
+        activeProfile: "local", shortcut: "cmd+ctrl+d",
+        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+
+    #expect(harness.permissionRequests == 0)
+    #expect(model.needsAccessibility == false)
+}
+
+@MainActor
+@Test func savingTheCombinationNeverAsks() throws {
+    let harness = try Harness(baseConfig)
+    harness.granted = false
+    let model = harness.startedModel()
+
+    model.applySettings(
+        activeProfile: "local", shortcut: "cmd+ctrl+d",
+        triggerKind: .combination, triggerModifier: .rightCommand)
+
+    #expect(harness.permissionRequests == 0)
+    #expect(harness.settingsOpened == 0)
+}
+
+@MainActor
+@Test func launchingAndRecheckingNeverAsk() throws {
+    // Only saving and the button may raise a dialog. Starting the app with the
+    // double tap already chosen must not, or every launch would interrupt.
     let harness = try Harness(baseConfig + "\ntrigger:\n  kind: doubleTap\n")
     harness.granted = false
     let model = harness.startedModel()
 
     model.refreshAccessibilityState()
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightCommand)
     model.reload()
 
     #expect(harness.permissionRequests == 0)
     #expect(harness.settingsOpened == 0)
+}
+
+@MainActor
+@Test func theButtonAfterSavingGoesToSystemSettings() throws {
+    // Saving used up the one dialog macOS will show, so the button in the menu
+    // has to lead somewhere that still works.
+    let harness = try Harness(baseConfig)
+    harness.granted = false
+    let model = harness.startedModel()
+
+    model.applySettings(
+        activeProfile: "local", shortcut: "cmd+ctrl+d",
+        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+    model.grantAccessibility()
+
+    #expect(harness.permissionRequests == 1)
+    #expect(harness.settingsOpened == 1)
 }
