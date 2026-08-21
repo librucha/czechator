@@ -111,6 +111,41 @@ struct SettingsFormState: Equatable {
         }
     }
 
+    /// Whether the profile in use wants a key — the Basic tab says where to
+    /// put it, rather than offering a second field bound to the same state as
+    /// the one in the profile editor.
+    var activeProfileNeedsKey: Bool {
+        config.profiles[config.activeProfile]?.kind == .openaiCompat
+    }
+
+    /// Whether the profile being edited talks to something that wants a key.
+    var editedProfileNeedsKey: Bool { editedProfileFields?.kind == .openaiCompat }
+
+    /// The Keychain entry this profile's key lives in, if it has one.
+    ///
+    /// Only a Keychain reference counts: a config may point at an environment
+    /// variable on purpose, and the window has no business rewriting that.
+    var editedProfileKeychainAccount: String? {
+        if case .keychain(let account) = editedProfileFields?.apiKey { return account }
+        return nil
+    }
+
+    /// Gives the profile somewhere to keep a key, and says where that is.
+    ///
+    /// A profile added from this window had no reference at all, so the key
+    /// field was disabled and the only way in was to edit the file by hand.
+    /// Returns nil when a key would be pointless — a local endpoint takes none
+    /// — or when the profile already resolves its key some other way.
+    @discardableResult
+    mutating func ensureKeychainReference() -> String? {
+        guard editedProfileNeedsKey else { return nil }
+        if let existing = editedProfileKeychainAccount { return existing }
+        guard editedProfileFields?.apiKey == nil else { return nil }
+        let account = "czechator-\(editedProfile)"
+        editedProfileFields?.apiKey = .keychain(account: account)
+        return account
+    }
+
     /// An application with no profile has nothing to talk to.
     var canRemoveProfile: Bool { config.profiles.count > 1 }
 

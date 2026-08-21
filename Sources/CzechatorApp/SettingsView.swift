@@ -107,17 +107,15 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Klíč pro cloudový profil") {
-                SecureField("API klíč", text: $apiKey)
-                    .disabled(model.keychainAccount(for: form.config.activeProfile) == nil)
-                if let keychainProblem {
-                    Label(keychainProblem, systemImage: "xmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-                Text("Uloží se do Keychainu, nikoli do konfiguračního souboru.")
+            if form.activeProfileNeedsKey {
+                Section("Klíč pro cloudový profil") {
+                    Text(
+                        "Klíč patří k profilu, takže se zadává tam: Pokročilé → "
+                            + "Profily → vyberte profil."
+                    )
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                }
             }
         }
         // Without this the form renders as bare rows: a plain Window does not
@@ -266,6 +264,30 @@ struct SettingsView: View {
                     Text("s").foregroundStyle(.secondary)
                 }
 
+                if form.editedProfileNeedsKey {
+                    SecureField("API klíč", text: $apiKey, prompt: Text("vloží se do Keychainu"))
+                    if let keychainProblem {
+                        Label(keychainProblem, systemImage: "xmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    } else if let account = form.editedProfileKeychainAccount {
+                        Text("Uloženo v Keychainu jako „\(account)“, nikoli v konfiguraci.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if form.editedProfileFields?.apiKey != nil {
+                        Text(
+                            "Tento profil bere klíč odjinud než z Keychainu — "
+                                + "nastavení do toho nesahá."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        Text("Uloží se do Keychainu, nikoli do konfiguračního souboru.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 if form.editedProfile == form.config.activeProfile {
                     Text("Tento profil se právě používá.")
                         .font(.caption)
@@ -356,7 +378,15 @@ struct SettingsView: View {
     }
 
     private func save() {
-        if !apiKey.isEmpty, let account = model.keychainAccount(for: form.config.activeProfile) {
+        // A name typed but never confirmed with Return would otherwise be lost.
+        form.commitRename()
+
+        if !apiKey.isEmpty {
+            guard let account = form.ensureKeychainReference() else {
+                keychainProblem =
+                    "Tento profil klíč z Keychainu nebere, takže ho tu nelze uložit."
+                return
+            }
             do {
                 try KeychainSecretResolver().store(apiKey, account: account)
                 apiKey = ""

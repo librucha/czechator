@@ -258,11 +258,6 @@ final class AppModel: ObservableObject {
 
     // MARK: - Settings
 
-    func keychainAccount(for profile: String) -> String? {
-        if case .keychain(let account) = config.profiles[profile]?.apiKey { return account }
-        return nil
-    }
-
     var isAccessibilityGranted: Bool { accessibilityGranted() }
 
     /// Asks macOS for the permission, and leaves the asking to macOS.
