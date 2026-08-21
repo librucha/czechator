@@ -96,11 +96,8 @@ struct MenuContent: View {
             }
             Button("Ukončit") { NSApplication.shared.terminate(nil) }
         }
-        // Opening the menu counts as acknowledging the error: the badge clears
-        // but the detail stays readable in the history below.
-        .onAppear {
-            model.acknowledgeError()
-            model.refreshAccessibilityState()
-        }
+        // No .onAppear here on purpose: SwiftUI runs it once, when it builds
+        // the menu's content at launch, not when the menu is opened. Opening
+        // the menu is picked up in AppModel, from the menu's own tracking.
     }
 }

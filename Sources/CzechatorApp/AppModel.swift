@@ -49,6 +49,44 @@ final class AppModel: ObservableObject {
         self.store = store
         self.accessibilityGranted = accessibilityGranted
         self.makeTrigger = makeTrigger
+        observeSystemEvents()
+    }
+
+    /// Watches the two things that happen to the app rather than in it.
+    ///
+    /// In `init` rather than `start()` because neither needs a running
+    /// application, and `start()` also asks for notification authorization —
+    /// which is not something constructing a model should do.
+    private func observeSystemEvents() {
+        // The permission can be revoked in System Settings while the app runs.
+        // Coming back to the app is one moment worth re-checking.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshAccessibilityState() }
+        }
+
+        // Opening the menu bar menu clears the error badge and re-checks the
+        // permission.
+        //
+        // This used to hang off `.onAppear` on the menu's content, which looked
+        // right and never ran: SwiftUI builds that content once, at launch, and
+        // opening the menu is not an appearance. Measured — two menu opens
+        // produced no callback at all.
+        //
+        // AppKit does announce it, through the menu's own tracking. `queue: nil`
+        // so the badge is already gone by the time the menu draws. Any menu of
+        // ours counts, including a context menu in the settings window; an
+        // accessory app has no menu bar of its own, and either way the user is
+        // interacting with the app, which is what the badge was waiting for.
+        NotificationCenter.default.addObserver(
+            forName: NSMenu.didBeginTrackingNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.acknowledgeError()
+                self?.refreshAccessibilityState()
+            }
+        }
     }
 
     var iconName: String {
@@ -74,14 +112,6 @@ final class AppModel: ObservableObject {
         guard !started else { return }
         started = true
         notifications.onActivate = { [weak self] in self?.acknowledgeError() }
-        // The permission can be revoked in System Settings while the app runs.
-        // Coming back to the app is the other moment worth re-checking, besides
-        // opening the menu — the settings window can be open the whole time.
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refreshAccessibilityState() }
-        }
         notifications.requestAuthorization()
         reload()
     }
