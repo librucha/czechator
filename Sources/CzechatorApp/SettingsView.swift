@@ -102,7 +102,7 @@ struct SettingsView: View {
                 Toggle("Historie v menu", isOn: $form.config.features.history)
                 if form.config.features.history {
                     Stepper(
-                        "Kolik položek: \(form.config.features.historySize)",
+                        "Velikost historie: \(form.config.features.historySize)",
                         value: $form.config.features.historySize, in: 1...100)
                 }
             }
@@ -175,7 +175,7 @@ struct SettingsView: View {
                     )
                     .labelsHidden()
                     .frame(width: 90)
-                    Text("B")
+                    Text("bytů")
                         .foregroundStyle(.secondary)
                 }
                 LabeledContent("Největší dávka") {
