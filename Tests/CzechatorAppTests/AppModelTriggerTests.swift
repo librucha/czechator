@@ -4,70 +4,9 @@ import Testing
 
 @testable import CzechatorApp
 
-/// A trigger that records what was asked of it instead of touching the system.
-@MainActor
-private final class SpyTrigger: Trigger {
-    private(set) var startCount = 0
-    private(set) var stopCount = 0
-    var failToStart: (any Error)?
-
-    func start(_ action: @escaping @MainActor () -> Void) throws {
-        if let failToStart { throw failToStart }
-        startCount += 1
-    }
-
-    func stop() { stopCount += 1 }
-}
-
-@MainActor
-private final class Harness {
-    let url: URL
-    private(set) var plans: [TriggerPlan] = []
-    private(set) var triggers: [SpyTrigger] = []
-    var granted = true
-    var nextFailure: (any Error)?
-
-    init(_ yaml: String) throws {
-        url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("czechator-\(UUID().uuidString)")
-            .appendingPathComponent("config.yaml")
-        try FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try yaml.write(to: url, atomically: true, encoding: .utf8)
-    }
-
-    func makeModel() -> AppModel {
-        AppModel(
-            store: ConfigStore(url: url),
-            accessibilityGranted: { [unowned self] in self.granted },
-            makeTrigger: { [unowned self] plan in
-                self.plans.append(plan)
-                let spy = SpyTrigger()
-                spy.failToStart = self.nextFailure
-                self.triggers.append(spy)
-                return spy
-            })
-    }
-}
-
-private let base = """
-    activeProfile: local
-    profiles:
-      local:
-        kind: ollama
-        endpoint: http://localhost:11434
-        model: qwen3:4b-instruct
-        temperature: 0
-        timeoutSeconds: 30
-    hotkeys:
-      - shortcut: cmd+ctrl+d
-        source: clipboard
-        sink: clipboard
-    """
-
 @MainActor
 @Test func installsTheCombinationWhenThatIsWhatTheConfigSays() throws {
-    let harness = try Harness(base)
+    let harness = try Harness(baseConfig)
     let model = harness.makeModel()
     model.reload()
 
@@ -86,7 +25,7 @@ private let base = """
 @Test func installsNothingWhenTheDoubleTapHasNoPermission() throws {
     // The point of the whole feature: no silent fallback to a combination that
     // steals a shortcut the user deliberately stopped stealing.
-    let harness = try Harness(base + "\ntrigger:\n  kind: doubleTap\n")
+    let harness = try Harness(baseConfig + "\ntrigger:\n  kind: doubleTap\n")
     harness.granted = false
     let model = harness.makeModel()
     model.reload()
@@ -99,7 +38,7 @@ private let base = """
 @MainActor
 @Test func installsTheDoubleTapOncePermitted() throws {
     let harness = try Harness(
-        base + "\ntrigger:\n  kind: doubleTap\n  modifier: leftOption\n  intervalMs: 250\n")
+        baseConfig + "\ntrigger:\n  kind: doubleTap\n  modifier: leftOption\n  intervalMs: 250\n")
     let model = harness.makeModel()
     model.reload()
 
@@ -118,7 +57,7 @@ private let base = """
 @Test func stopsThePreviousTriggerBeforeInstallingTheNext() throws {
     // The claim the removed deinits rest on. If it stops being true, an NSEvent
     // monitor or a Carbon registration outlives the object that owns it.
-    let harness = try Harness(base)
+    let harness = try Harness(baseConfig)
     let model = harness.makeModel()
     model.reload()
     model.reload()
@@ -131,7 +70,7 @@ private let base = """
 @MainActor
 @Test func reportsAnUnreadableShortcutInsteadOfInstallingNothingQuietly() throws {
     let harness = try Harness(
-        base.replacingOccurrences(of: "cmd+ctrl+d", with: "cmd+ctr+d"))
+        baseConfig.replacingOccurrences(of: "cmd+ctrl+d", with: "cmd+ctr+d"))
     let model = harness.makeModel()
     model.reload()
 
@@ -141,7 +80,7 @@ private let base = """
 
 @MainActor
 @Test func reportsAFailedRegistrationInCzech() throws {
-    let harness = try Harness(base)
+    let harness = try Harness(baseConfig)
     harness.nextFailure = HotKeyManager.HotKeyError.registrationFailed(-9878)
     let model = harness.makeModel()
     model.reload()
@@ -154,7 +93,7 @@ private let base = """
 
 @MainActor
 @Test func noticesThePermissionAppearingWhileTheAppRuns() throws {
-    let harness = try Harness(base + "\ntrigger:\n  kind: doubleTap\n")
+    let harness = try Harness(baseConfig + "\ntrigger:\n  kind: doubleTap\n")
     harness.granted = false
     let model = harness.makeModel()
     model.reload()
@@ -169,7 +108,7 @@ private let base = """
 
 @MainActor
 @Test func noticesThePermissionBeingRevokedWhileTheAppRuns() throws {
-    let harness = try Harness(base + "\ntrigger:\n  kind: doubleTap\n")
+    let harness = try Harness(baseConfig + "\ntrigger:\n  kind: doubleTap\n")
     let model = harness.makeModel()
     model.reload()
     #expect(harness.plans.count == 1)
@@ -185,7 +124,7 @@ private let base = """
 @Test func doesNotChurnWhenNothingAboutThePermissionChanged() throws {
     // refreshAccessibilityState runs on every menu open and every activation.
     // Re-registering the trigger each time would be wasted work at best.
-    let harness = try Harness(base + "\ntrigger:\n  kind: doubleTap\n")
+    let harness = try Harness(baseConfig + "\ntrigger:\n  kind: doubleTap\n")
     let model = harness.makeModel()
     model.reload()
     model.refreshAccessibilityState()
@@ -196,7 +135,7 @@ private let base = """
 
 @MainActor
 @Test func leavesTheCombinationAloneOnAPermissionCheck() throws {
-    let harness = try Harness(base)
+    let harness = try Harness(baseConfig)
     let model = harness.makeModel()
     model.reload()
     harness.granted = false
