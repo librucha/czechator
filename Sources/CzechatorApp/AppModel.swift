@@ -258,12 +258,6 @@ final class AppModel: ObservableObject {
 
     // MARK: - Settings
 
-    var profileNames: [String] { config.profiles.keys.sorted() }
-
-    func endpointDescription(for profile: String) -> String? {
-        config.profiles[profile].map { "\($0.kind.rawValue) · \($0.endpoint) · \($0.model)" }
-    }
-
     func keychainAccount(for profile: String) -> String? {
         if case .keychain(let account) = config.profiles[profile]?.apiKey { return account }
         return nil

@@ -33,9 +33,9 @@ struct SettingsView: View {
         Form {
             Section("Profil") {
                 Picker("Aktivní profil", selection: $form.config.activeProfile) {
-                    ForEach(model.profileNames, id: \.self) { Text($0) }
+                    ForEach(form.profileNames, id: \.self) { Text($0).tag($0) }
                 }
-                if let endpoint = model.endpointDescription(for: form.config.activeProfile) {
+                if let endpoint = form.activeProfileDescription {
                     Text(endpoint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -143,6 +143,8 @@ struct SettingsView: View {
 
     private var advanced: some View {
         Form {
+            profilesSection
+
             if form.config.trigger.kind == .doubleTap {
                 Section("Časy dvojího stisku") {
                     Stepper(
@@ -209,6 +211,115 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    @ViewBuilder
+    private var profilesSection: some View {
+        Section("Profily") {
+            HStack {
+                // A picker rather than the list a mock-up might suggest: a list
+                // with a selection inside a Form fights the form's own layout,
+                // and with a handful of profiles this shows the same thing.
+                Picker("Upravovaný profil", selection: editedProfile) {
+                    ForEach(form.profileNames, id: \.self) { Text($0).tag($0) }
+                }
+                Button {
+                    form.addProfile()
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("Přidat profil")
+                Button {
+                    form.removeEditedProfile()
+                } label: {
+                    Image(systemName: "minus")
+                }
+                .disabled(!form.canRemoveProfile)
+                .help(
+                    form.canRemoveProfile
+                        ? "Odebrat profil" : "Poslední profil odebrat nelze")
+            }
+
+            if form.editedProfileFields != nil {
+                TextField("Název", text: $form.editedProfileName)
+                    .onSubmit { form.commitRename() }
+                if let problem = form.profileNameProblem {
+                    Label(problem, systemImage: "xmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Picker("Typ", selection: profileKind) {
+                    ForEach(ProfileKind.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                TextField("Endpoint", text: profileEndpoint)
+                TextField("Model", text: profileModel)
+                LabeledContent("Teplota") {
+                    TextField("", value: profileTemperature, format: .number)
+                        .labelsHidden()
+                        .frame(width: 70)
+                }
+                LabeledContent("Timeout") {
+                    TextField("", value: profileTimeout, format: .number)
+                        .labelsHidden()
+                        .frame(width: 70)
+                    Text("s").foregroundStyle(.secondary)
+                }
+
+                if form.editedProfile == form.config.activeProfile {
+                    Text("Tento profil se právě používá.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button("Použít tento profil") {
+                        form.config.activeProfile = form.editedProfile
+                    }
+                }
+            }
+        }
+    }
+
+    /// Selecting is a method rather than a plain field, because switching has to
+    /// commit whatever was typed into the rename box first.
+    private var editedProfile: Binding<String> {
+        Binding(
+            get: { form.editedProfile },
+            set: { form.selectProfile($0) })
+    }
+
+    private var profileKind: Binding<ProfileKind> {
+        Binding(
+            get: { form.editedProfileFields?.kind ?? .ollama },
+            set: { form.editedProfileFields?.kind = $0 })
+    }
+
+    /// Typed as text, not as a URL: half-finished input like `http://loc` is
+    /// not a URL yet, and a field that resists being typed into is worse than
+    /// one that says what is wrong. `Config.validate` is what refuses it.
+    private var profileEndpoint: Binding<String> {
+        Binding(
+            get: { form.editedProfileFields?.endpoint.absoluteString ?? "" },
+            set: {
+                form.editedProfileFields?.endpoint = URL(string: $0) ?? URL(string: "about:blank")!
+            })
+    }
+
+    private var profileModel: Binding<String> {
+        Binding(
+            get: { form.editedProfileFields?.model ?? "" },
+            set: { form.editedProfileFields?.model = $0 })
+    }
+
+    private var profileTemperature: Binding<Double> {
+        Binding(
+            get: { form.editedProfileFields?.temperature ?? 0 },
+            set: { form.editedProfileFields?.temperature = $0 })
+    }
+
+    private var profileTimeout: Binding<Double> {
+        Binding(
+            get: { form.editedProfileFields?.timeoutSeconds ?? 30 },
+            set: { form.editedProfileFields?.timeoutSeconds = $0 })
     }
 
     /// The config stores nil for "use the built-in prompt"; a text editor needs
