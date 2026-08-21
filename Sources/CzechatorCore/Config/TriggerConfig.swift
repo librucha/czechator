@@ -14,11 +14,16 @@ public struct TriggerConfig: Sendable, Codable, Equatable {
     public var modifier: ModifierKey
     /// Milliseconds allowed between the first release and the second press.
     ///
-    /// Settable only through an initialiser, so the clamped range cannot be
-    /// stepped around by assigning to the field afterwards.
-    public private(set) var intervalMs: Int
+    /// Clamped on every write, not only in the initialiser: the settings window
+    /// binds straight to this, and a range enforced in one place only is a
+    /// range that holds until someone finds the other way in.
+    public var intervalMs: Int {
+        didSet { intervalMs = intervalMs.clamped(to: Self.allowedMs) }
+    }
     /// Milliseconds a tap may last before it counts as holding the key.
-    public private(set) var maxHoldMs: Int
+    public var maxHoldMs: Int {
+        didSet { maxHoldMs = maxHoldMs.clamped(to: Self.allowedMs) }
+    }
     /// Logs every modifier event with its key code.
     ///
     /// Lives in the config rather than only in an environment variable because

@@ -16,6 +16,16 @@ public enum LetterCasePolicy: String, Sendable, Codable, Equatable, CaseIterable
     /// only diacritics changed.
     case model
 
+    /// Alongside `ModifierKey.label`: the settings window needs a name for each
+    /// case, and keeping it next to the case is what stops the two drifting.
+    public var label: String {
+        switch self {
+        case .preserve: return "Zachovat původní"
+        case .segmentStart: return "Povolit na začátku segmentu"
+        case .model: return "Nechat na modelu"
+        }
+    }
+
     /// Comparison form: folds away diacritics, plus whatever case difference
     /// this policy tolerates.
     public func normalize(_ text: String) -> String {

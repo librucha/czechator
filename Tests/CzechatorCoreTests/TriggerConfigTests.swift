@@ -71,3 +71,13 @@ import Testing
         TriggerConfig.self, from: Data(#"{"kind":"doubleTap"}"#.utf8))
     #expect(absent.debug == false)
 }
+
+@Test func clampsValuesAssignedAfterwards() {
+    // The settings window binds to these directly, so the initialiser is not
+    // the only way in.
+    var config = TriggerConfig.builtIn
+    config.intervalMs = 0
+    config.maxHoldMs = 100_000
+    #expect(config.intervalMs == 10)
+    #expect(config.maxHoldMs == 2000)
+}

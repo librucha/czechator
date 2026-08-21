@@ -1,8 +1,15 @@
 import Foundation
 
-public enum ProfileKind: String, Sendable, Codable {
+public enum ProfileKind: String, Sendable, Codable, Equatable, CaseIterable {
     case ollama
     case openaiCompat = "openai-compat"
+
+    public var label: String {
+        switch self {
+        case .ollama: return "Ollama"
+        case .openaiCompat: return "OpenAI-kompatibilní"
+        }
+    }
 }
 
 public struct Profile: Sendable, Codable, Equatable {
