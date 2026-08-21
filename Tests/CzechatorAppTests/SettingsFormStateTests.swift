@@ -15,38 +15,6 @@ private func loadedForm(
     return form
 }
 
-// MARK: - Asking for the permission
-
-@Test func openingTheWindowNeverAsksForThePermission() {
-    // The bug this replaces: `load()` assigns the trigger kind after the first
-    // render, so an install already set to the double tap looked exactly like
-    // the user picking it, and the system dialog appeared on every open.
-    var form = SettingsFormState()
-    #expect(form.shouldRequestPermission(forNewKind: .doubleTap, granted: false) == false)
-
-    form.load(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightCommand)
-    // Loading is what makes the window ready, not what makes it a user action.
-    #expect(form.loaded)
-}
-
-@Test func switchingToTheDoubleTapAsksWhenThePermissionIsMissing() {
-    let form = loadedForm()
-    #expect(form.shouldRequestPermission(forNewKind: .doubleTap, granted: false))
-}
-
-@Test func switchingToTheDoubleTapStaysQuietWhenAlreadyPermitted() {
-    let form = loadedForm()
-    #expect(form.shouldRequestPermission(forNewKind: .doubleTap, granted: true) == false)
-}
-
-@Test func switchingBackToTheCombinationNeverAsks() {
-    let form = loadedForm(kind: .doubleTap)
-    #expect(form.shouldRequestPermission(forNewKind: .combination, granted: false) == false)
-    #expect(form.shouldRequestPermission(forNewKind: .combination, granted: true) == false)
-}
-
 // MARK: - Saving
 
 @Test func anUnreadableShortcutBlocksSavingInBothModes() {
@@ -128,4 +96,17 @@ private func loadedForm(
 
     #expect(form.shortcut == "cmd+ctrl+d")
     #expect(form.triggerKind == .combination)
+}
+
+@Test func loadIsNotAUserAction() {
+    // The window used to ask macOS for the Accessibility permission the moment
+    // it opened on a double-tap install, because load() assigning the trigger
+    // kind is indistinguishable from the user picking it. Nothing here decides
+    // anything about permissions any more — only the button does.
+    var form = SettingsFormState()
+    form.load(
+        activeProfile: "local", shortcut: "cmd+ctrl+d",
+        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+    #expect(form.triggerKind == .doubleTap)
+    #expect(form.canSave)
 }

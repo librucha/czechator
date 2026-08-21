@@ -14,13 +14,6 @@ struct SettingsFormState: Equatable {
     var triggerKind: TriggerKind = .combination
     var triggerModifier: ModifierKey = .rightCommand
 
-    /// False until `load` has run.
-    ///
-    /// `load` assigns the trigger kind, and SwiftUI cannot tell that assignment
-    /// from the user picking a different one — which is how opening the window
-    /// on a double-tap install came to raise the permission dialog every time.
-    private(set) var loaded = false
-
     /// Computed rather than stored: the flag this replaces was refreshed by an
     /// `onChange` and could describe a shortcut the field no longer held.
     var shortcutIsValid: Bool {
@@ -42,16 +35,6 @@ struct SettingsFormState: Equatable {
     /// the double-tap side would leave no trigger at all on switching back.
     var canSave: Bool { shortcutIsValid }
 
-    /// Whether flipping the picker to `kind` should ask macOS for the
-    /// Accessibility permission.
-    ///
-    /// `granted` is read from the system rather than from the last saved
-    /// config, which at this moment still describes the trigger the user is
-    /// leaving.
-    func shouldRequestPermission(forNewKind kind: TriggerKind, granted: Bool) -> Bool {
-        loaded && kind == .doubleTap && !granted
-    }
-
     /// Replaces everything with what is actually in effect. The window is not a
     /// draft: an unsaved edit does not survive reopening it.
     mutating func load(
@@ -62,6 +45,5 @@ struct SettingsFormState: Equatable {
         self.shortcut = shortcut
         self.triggerKind = triggerKind
         self.triggerModifier = triggerModifier
-        loaded = true
     }
 }

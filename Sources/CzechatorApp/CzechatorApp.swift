@@ -65,7 +65,7 @@ struct MenuContent: View {
                 Divider()
                 Text(problem)
                 if model.needsAccessibility {
-                    Button("Povolit v Nastavení systému…") { model.grantAccessibility() }
+                    Button("Udělit oprávnění…") { model.grantAccessibility() }
                 }
             }
 

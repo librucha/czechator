@@ -70,7 +70,7 @@ struct SettingsView: View {
                         Label(ErrorMessages.accessibilityRequired, systemImage: "lock")
                             .font(.caption)
                             .foregroundStyle(.orange)
-                        Button("Povolit v Nastavení systému…") { model.grantAccessibility() }
+                        Button("Udělit oprávnění…") { model.grantAccessibility() }
                     }
                 }
             }
@@ -104,12 +104,6 @@ struct SettingsView: View {
         }
         .frame(minWidth: 460, minHeight: 380)
         .onAppear { load() }
-        .onChange(of: form.triggerKind) { _, new in
-            guard
-                form.shouldRequestPermission(forNewKind: new, granted: model.isAccessibilityGranted)
-            else { return }
-            model.grantAccessibility()
-        }
     }
 
     private func load() {

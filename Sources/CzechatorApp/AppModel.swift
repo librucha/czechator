@@ -33,6 +33,11 @@ final class AppModel: ObservableObject {
     /// Injected so that the trigger rules can be tested without asking the
     /// system for a permission the test machine may or may not have granted.
     private let accessibilityGranted: @MainActor () -> Bool
+    private let requestAccessibility: @MainActor () -> Void
+    private let openAccessibilitySettings: @MainActor () -> Void
+    /// macOS shows its permission dialog once per app and ignores every later
+    /// ask, so the second press has to lead somewhere else.
+    private var hasAskedForAccessibility = false
     private let makeTrigger: @MainActor (TriggerPlan) -> any Trigger
     private var trigger: (any Trigger)?
     private let notifications = NotificationCenterBridge()
@@ -44,10 +49,18 @@ final class AppModel: ObservableObject {
         accessibilityGranted: @escaping @MainActor () -> Bool = {
             AccessibilityPermission.isGranted
         },
+        requestAccessibility: @escaping @MainActor () -> Void = {
+            AccessibilityPermission.request()
+        },
+        openAccessibilitySettings: @escaping @MainActor () -> Void = {
+            AccessibilityPermission.openSystemSettings()
+        },
         makeTrigger: @escaping @MainActor (TriggerPlan) -> any Trigger = makeLiveTrigger
     ) {
         self.store = store
         self.accessibilityGranted = accessibilityGranted
+        self.requestAccessibility = requestAccessibility
+        self.openAccessibilitySettings = openAccessibilitySettings
         self.makeTrigger = makeTrigger
         observeSystemEvents()
     }
@@ -262,12 +275,19 @@ final class AppModel: ObservableObject {
     var triggerModifier: ModifierKey { config.trigger.modifier }
     var isAccessibilityGranted: Bool { accessibilityGranted() }
 
-    /// Asks for the permission and opens the pane. The system dialog only
-    /// appears the first time macOS is asked; the pane is what the user needs
-    /// on every later attempt, which is why both happen.
+    /// Asks macOS for the permission, and leaves the asking to macOS.
+    ///
+    /// The system dialog already offers both a way into System Settings and a
+    /// way to decline. Opening the pane alongside it took the decline away —
+    /// whatever the user chose, System Settings appeared. It only makes sense
+    /// once the dialog has had its turn, because macOS will not show it twice.
     func grantAccessibility() {
-        AccessibilityPermission.request()
-        AccessibilityPermission.openSystemSettings()
+        guard hasAskedForAccessibility else {
+            hasAskedForAccessibility = true
+            requestAccessibility()
+            return
+        }
+        openAccessibilitySettings()
     }
 
     /// Writes through ConfigStore, which preserves keys the app does not know

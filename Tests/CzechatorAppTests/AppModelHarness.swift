@@ -27,6 +27,8 @@ final class Harness {
     private(set) var triggers: [SpyTrigger] = []
     var granted = true
     var nextFailure: (any Error)?
+    private(set) var permissionRequests = 0
+    private(set) var settingsOpened = 0
 
     init(_ yaml: String) throws {
         url = FileManager.default.temporaryDirectory
@@ -41,6 +43,8 @@ final class Harness {
         AppModel(
             store: ConfigStore(url: url),
             accessibilityGranted: { [unowned self] in self.granted },
+            requestAccessibility: { [unowned self] in self.permissionRequests += 1 },
+            openAccessibilitySettings: { [unowned self] in self.settingsOpened += 1 },
             makeTrigger: { [unowned self] plan in
                 self.plans.append(plan)
                 let spy = SpyTrigger()
