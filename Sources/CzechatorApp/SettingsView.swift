@@ -5,28 +5,21 @@ struct SettingsView: View {
 
     @ObservedObject var model: AppModel
 
-    @State private var activeProfile: String = ""
-    @State private var shortcut: String = ""
+    /// Everything the window can change, plus the rules that follow from it.
+    /// See SettingsFormState — the decisions live there so they can be tested.
+    @State private var form = SettingsFormState()
     @State private var apiKey: String = ""
-    @State private var warning: String?
-    /// A shortcut that will not parse must not reach the config file: the app
-    /// would then fail to register it on every launch and the hotkey would be
-    /// silently dead.
-    @State private var shortcutIsValid = true
-    @State private var triggerKind: TriggerKind = .combination
-    @State private var triggerModifier: ModifierKey = .rightCommand
-    /// `load()` assigns the trigger kind after the first render, which counts
-    /// as a change. Without this flag every open of the window would look like
-    /// the user picking the double tap, and prompt for the permission again.
-    @State private var loaded = false
+    /// Only ever set by a failed Keychain write; the shortcut's own warning is
+    /// derived from the shortcut itself.
+    @State private var keychainProblem: String?
 
     var body: some View {
         Form {
             Section("Profil") {
-                Picker("Aktivní profil", selection: $activeProfile) {
+                Picker("Aktivní profil", selection: $form.activeProfile) {
                     ForEach(model.profileNames, id: \.self) { Text($0) }
                 }
-                if let endpoint = model.endpointDescription(for: activeProfile) {
+                if let endpoint = model.endpointDescription(for: form.activeProfile) {
                     Text(endpoint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -35,24 +28,24 @@ struct SettingsView: View {
             }
 
             Section("Spouštění") {
-                Picker("Spouštěč", selection: $triggerKind) {
+                Picker("Spouštěč", selection: $form.triggerKind) {
                     Text("Klávesová zkratka").tag(TriggerKind.combination)
                     Text("Dvojí stisk modifikátoru").tag(TriggerKind.doubleTap)
                 }
 
-                if triggerKind == .combination {
-                    TextField("Zkratka", text: $shortcut, prompt: Text("cmd+ctrl+d"))
-                    if let warning {
+                if form.triggerKind == .combination {
+                    TextField("Zkratka", text: $form.shortcut, prompt: Text("cmd+ctrl+d"))
+                    if let warning = form.warning {
                         Label(
                             warning,
-                            systemImage: shortcutIsValid
+                            systemImage: form.shortcutIsValid
                                 ? "exclamationmark.triangle" : "xmark.circle"
                         )
                         .font(.caption)
-                        .foregroundStyle(shortcutIsValid ? .orange : .red)
+                        .foregroundStyle(form.shortcutIsValid ? .orange : .red)
                     }
                 } else {
-                    if !shortcutIsValid {
+                    if !form.shortcutIsValid {
                         // The shortcut is stored either way, so it has to parse
                         // either way — otherwise switching back later would
                         // leave the app with no trigger at all.
@@ -64,7 +57,7 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                     }
-                    Picker("Modifikátor", selection: $triggerModifier) {
+                    Picker("Modifikátor", selection: $form.triggerModifier) {
                         ForEach(ModifierKey.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
                     Text(
@@ -84,7 +77,12 @@ struct SettingsView: View {
 
             Section("Klíč pro cloudový profil") {
                 SecureField("API klíč", text: $apiKey)
-                    .disabled(model.keychainAccount(for: activeProfile) == nil)
+                    .disabled(model.keychainAccount(for: form.activeProfile) == nil)
+                if let keychainProblem {
+                    Label(keychainProblem, systemImage: "xmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
                 Text("Uloží se do Keychainu, nikoli do konfiguračního souboru.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -98,7 +96,7 @@ struct SettingsView: View {
                 Spacer()
                 Button("Uložit") { save() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!shortcutIsValid)
+                    .disabled(!form.canSave)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -106,55 +104,36 @@ struct SettingsView: View {
         }
         .frame(minWidth: 460, minHeight: 380)
         .onAppear { load() }
-        .onChange(of: shortcut) { _, new in validate(new) }
-        .onChange(of: triggerKind) { _, new in
-            // Ask at the moment the user opts in, never at launch and never on
-            // reopening a window that was already set to the double tap. Read
-            // the permission itself rather than `needsAccessibility`, which
-            // only reflects the config as last saved and is still false here.
-            guard loaded, new == .doubleTap, !model.isAccessibilityGranted else { return }
+        .onChange(of: form.triggerKind) { _, new in
+            guard
+                form.shouldRequestPermission(forNewKind: new, granted: model.isAccessibilityGranted)
+            else { return }
             model.grantAccessibility()
         }
     }
 
     private func load() {
-        activeProfile = model.activeProfileName
-        shortcut = model.shortcutText
-        triggerKind = model.triggerKind
-        triggerModifier = model.triggerModifier
-        validate(shortcut)
-        loaded = true
-    }
-
-    private func validate(_ text: String) {
-        do {
-            let spec = try ShortcutSpec.parse(text)
-            shortcutIsValid = true
-            // A collision warning is advisory — the user may genuinely want it.
-            warning =
-                spec.isCommonSystemShortcut
-                ? "Tohle je běžná systémová zkratka — v ostatních aplikacích přestane fungovat."
-                : nil
-        } catch {
-            shortcutIsValid = false
-            warning = "Zkratku se nepodařilo přečíst. Příklad: cmd+ctrl+d"
-        }
+        form.load(
+            activeProfile: model.activeProfileName, shortcut: model.shortcutText,
+            triggerKind: model.triggerKind, triggerModifier: model.triggerModifier)
+        keychainProblem = nil
     }
 
     private func save() {
-        if !apiKey.isEmpty, let account = model.keychainAccount(for: activeProfile) {
+        if !apiKey.isEmpty, let account = model.keychainAccount(for: form.activeProfile) {
             do {
                 try KeychainSecretResolver().store(apiKey, account: account)
                 apiKey = ""
+                keychainProblem = nil
             } catch {
                 // Clearing the field on a failed write would look like success
                 // and the problem would only surface at the next model call.
-                warning = ErrorMessages.describe(error)
+                keychainProblem = ErrorMessages.describe(error)
                 return
             }
         }
         model.applySettings(
-            activeProfile: activeProfile, shortcut: shortcut,
-            triggerKind: triggerKind, triggerModifier: triggerModifier)
+            activeProfile: form.activeProfile, shortcut: form.shortcut,
+            triggerKind: form.triggerKind, triggerModifier: form.triggerModifier)
     }
 }

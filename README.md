@@ -407,8 +407,16 @@ config store, its permission check and its trigger factory from outside, so the
 rules for choosing and replacing a trigger are tested without registering a
 global hotkey or asking macOS for anything.
 
-What is still not covered is the SwiftUI layer — the settings window's own
-behaviour is verified by review, not by tests.
+The settings window's rules — whether saving is allowed, whether a change
+should ask for the Accessibility permission, what the warning says — live in
+`SettingsFormState` rather than inside the view, so they are tested as ordinary
+logic. Both bugs that once escaped review are pinned by a test that fails if
+the bug is reintroduced.
+
+What is still not covered is SwiftUI itself: that the right controls appear in
+the right sections is verified by review, not by tests. ViewInspector would
+cover it but cannot be built here — it imports XCTest unconditionally, and
+Command Line Tools ship only Testing.framework.
 
 ## Versioning
 
