@@ -2,13 +2,20 @@ import CzechatorCore
 import Foundation
 import Security
 
-/// The only place in the app that touches Security.framework. The core knows
-/// nothing about it, which is what keeps the core buildable on Linux.
-struct KeychainSecretResolver: SecretResolver {
+/// The only place in the project that touches Security.framework.
+///
+/// Its own target rather than a file in the app, because the CLI needs it too:
+/// a key kept in the Keychain is unreadable from the shell otherwise, while a
+/// key kept in the environment is unreadable from an app launched by the Dock.
+/// One configuration has to work for both. The core stays free of Security —
+/// this target is macOS-only and the CLI depends on it only there.
+public struct KeychainSecretResolver: SecretResolver {
 
     private let service = "cz.czechator.app"
 
-    func resolve(_ ref: SecretRef) throws -> String {
+    public init() {}
+
+    public func resolve(_ ref: SecretRef) throws -> String {
         switch ref {
         case .literal(let value):
             return value
@@ -39,7 +46,7 @@ struct KeychainSecretResolver: SecretResolver {
         return value
     }
 
-    func store(_ value: String, account: String) throws {
+    public func store(_ value: String, account: String) throws {
         let base: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

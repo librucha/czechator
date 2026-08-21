@@ -7,7 +7,11 @@ import PackageDescription
         .executable(name: "CzechatorApp", targets: ["CzechatorApp"])
     ]
     let appTargets: [Target] = [
-        .executableTarget(name: "CzechatorApp", dependencies: ["CzechatorCore"]),
+        // macOS-only, and shared: the CLI needs the Keychain too, or a key that
+        // works in the app is unreadable from the shell.
+        .target(name: "CzechatorKeychain", dependencies: ["CzechatorCore"]),
+        .executableTarget(
+            name: "CzechatorApp", dependencies: ["CzechatorCore", "CzechatorKeychain"]),
         .testTarget(name: "CzechatorAppTests", dependencies: ["CzechatorApp"]),
     ]
 #else
@@ -36,6 +40,7 @@ let package = Package(
             dependencies: [
                 "CzechatorCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .target(name: "CzechatorKeychain", condition: .when(platforms: [.macOS])),
             ]
         ),
         .testTarget(name: "CzechatorCoreTests", dependencies: ["CzechatorCore"]),

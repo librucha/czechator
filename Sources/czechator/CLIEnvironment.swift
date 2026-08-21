@@ -2,6 +2,10 @@ import ArgumentParser
 import CzechatorCore
 import Foundation
 
+#if canImport(CzechatorKeychain)
+    import CzechatorKeychain
+#endif
+
 struct CLIEnvironment {
     let config: Config
     let registry: FormatRegistry
@@ -17,13 +21,15 @@ struct CLIEnvironment {
             config: config, registry: try FormatRegistry(rules: config.segmentation))
     }
 
-    /// The CLI resolves secrets from the environment — Keychain lives in the app.
+    /// Resolves the same references the app does, so one configuration works
+    /// from both. On macOS that includes the Keychain; elsewhere there is none,
+    /// and an environment variable is the way in.
     func makeProvider() throws -> any LLMProvider {
         guard let profile = config.active else {
             throw ConfigError.unknownActiveProfile(config.activeProfile)
         }
         let client = URLSessionHTTPClient()
-        let key = try profile.apiKey.map { try EnvironmentSecretResolver().resolve($0) }
+        let key = try profile.apiKey.map { try Self.secretResolver.resolve($0) }
 
         switch profile.kind {
         case .ollama:
@@ -50,5 +56,16 @@ struct CLIEnvironment {
             return String(decoding: data, as: UTF8.self)
         }
         return try String(contentsOfFile: path, encoding: .utf8)
+    }
+}
+
+extension CLIEnvironment {
+    /// Keychain where there is one, environment where there is not.
+    static var secretResolver: any SecretResolver {
+        #if canImport(CzechatorKeychain)
+            return KeychainSecretResolver()
+        #else
+            return EnvironmentSecretResolver()
+        #endif
     }
 }

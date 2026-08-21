@@ -340,6 +340,11 @@ rebuild.
 
 ## Known limitations
 
+- **The CLI asks for Keychain access the first time.** A key stored from the
+  app belongs to the app, and the CLI is a different program as far as macOS is
+  concerned, so it prompts once — click *Always Allow*. The terminal blocks
+  until you answer. Ad-hoc signing means the approval is tied to that exact
+  binary, so a rebuilt CLI asks again.
 - **The Accessibility permission has to be granted again after every build.**
   It is tied to the code signature, and the ad-hoc signing this project uses
   produces a new one each time. The stale entry usually has to be removed from

@@ -1,5 +1,6 @@
 import AppKit
 import CzechatorCore
+import CzechatorKeychain
 import SwiftUI
 
 enum RunState: Equatable {
