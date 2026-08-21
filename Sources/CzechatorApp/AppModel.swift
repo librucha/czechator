@@ -259,8 +259,6 @@ final class AppModel: ObservableObject {
     // MARK: - Settings
 
     var profileNames: [String] { config.profiles.keys.sorted() }
-    var activeProfileName: String { config.activeProfile }
-    var shortcutText: String { config.hotkeys.first?.shortcut ?? "cmd+ctrl+d" }
 
     func endpointDescription(for profile: String) -> String? {
         config.profiles[profile].map { "\($0.kind.rawValue) · \($0.endpoint) · \($0.model)" }
@@ -271,8 +269,6 @@ final class AppModel: ObservableObject {
         return nil
     }
 
-    var triggerKind: TriggerKind { config.trigger.kind }
-    var triggerModifier: ModifierKey { config.trigger.modifier }
     var isAccessibilityGranted: Bool { accessibilityGranted() }
 
     /// Asks macOS for the permission, and leaves the asking to macOS.
@@ -290,27 +286,16 @@ final class AppModel: ObservableObject {
         openAccessibilitySettings()
     }
 
+    /// The configuration in effect, for the settings window to edit a copy of.
+    var currentConfig: Config { config }
+
     /// Writes through ConfigStore, which preserves keys the app does not know
     /// about, then re-installs the trigger.
     ///
-    /// Everything the settings window can change goes through this one call:
-    /// two separate applies would mean two disk writes and two registrations
-    /// per save, with a window in between where the file is half updated.
-    func applySettings(
-        activeProfile: String, shortcut: String,
-        triggerKind: TriggerKind, triggerModifier: ModifierKey
-    ) {
-        var updated = config
-        updated.activeProfile = activeProfile
-        if updated.hotkeys.isEmpty {
-            updated.hotkeys = [
-                HotkeyBinding(shortcut: shortcut, source: "clipboard", sink: "clipboard")
-            ]
-        } else {
-            updated.hotkeys[0].shortcut = shortcut
-        }
-        updated.trigger.kind = triggerKind
-        updated.trigger.modifier = triggerModifier
+    /// Takes the whole configuration rather than a parameter per control: the
+    /// window edits most of what the file holds, and one write means there is
+    /// never a moment where the file is half updated.
+    func apply(_ updated: Config) {
         do {
             try store.save(updated)
             reload()

@@ -13,9 +13,12 @@ import Testing
     let harness = try Harness(baseConfig)
     let model = harness.startedModel()
 
-    model.applySettings(
-        activeProfile: "openai", shortcut: "cmd+alt+k",
-        triggerKind: .doubleTap, triggerModifier: .leftOption)
+    model.applyChange {
+        $0.activeProfile = "openai"
+        $0.hotkeys[0].shortcut = "cmd+alt+k"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .leftOption
+    }
 
     let saved = try harness.reloadedFromDisk()
     #expect(saved.activeProfile == "openai")
@@ -29,15 +32,18 @@ import Testing
     // The file is the whole point: a setting that only lives in memory is a
     // setting the user loses on the next launch.
     let harness = try Harness(baseConfig)
-    harness.startedModel().applySettings(
-        activeProfile: "openai", shortcut: "ctrl+shift+p",
-        triggerKind: .doubleTap, triggerModifier: .rightOption)
+    harness.startedModel().applyChange {
+        $0.activeProfile = "openai"
+        $0.hotkeys[0].shortcut = "ctrl+shift+p"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .rightOption
+    }
 
     let fresh = harness.startedModel()
-    #expect(fresh.activeProfileName == "openai")
-    #expect(fresh.shortcutText == "ctrl+shift+p")
-    #expect(fresh.triggerKind == .doubleTap)
-    #expect(fresh.triggerModifier == .rightOption)
+    #expect(fresh.currentConfig.activeProfile == "openai")
+    #expect(fresh.currentConfig.hotkeys[0].shortcut == "ctrl+shift+p")
+    #expect(fresh.currentConfig.trigger.kind == .doubleTap)
+    #expect(fresh.currentConfig.trigger.modifier == .rightOption)
 }
 
 @MainActor
@@ -48,9 +54,12 @@ import Testing
     let harness = try Harness(baseConfig + "\nmojePoznamka: nesahat\n")
     let model = harness.startedModel()
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+    model.applyChange {
+        $0.activeProfile = "local"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .rightCommand
+    }
 
     let text = try harness.fileContents()
     #expect(text.contains("mojePoznamka: nesahat"))
@@ -62,9 +71,10 @@ import Testing
 }
 
 @MainActor
-@Test func createsTheBindingWhenTheFileHasNoneAtAll() throws {
-    // `hotkeys: []` parses fine and leaves the app with nothing to register.
-    // Saving a shortcut has to repair that, not index into an empty array.
+@Test func reportsAConfigWithNoBindingAtAll() throws {
+    // `hotkeys: []` parses fine and leaves nothing to register. The settings
+    // window repairs it on load — see SettingsFormState — but a file edited by
+    // hand has to say so rather than fail silently.
     let harness = try Harness(
         baseConfig.replacingOccurrences(
             of: """
@@ -74,19 +84,9 @@ import Testing
                     sink: clipboard
                 """, with: "hotkeys: []"))
     let model = harness.startedModel()
-    #expect(model.startupProblem != nil)
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .combination, triggerModifier: .rightCommand)
-
-    let saved = try harness.reloadedFromDisk()
-    #expect(saved.hotkeys.count == 1)
-    #expect(saved.hotkeys[0].shortcut == "cmd+ctrl+d")
-    // And the source/sink the rest of the app expects were filled in.
-    #expect(saved.hotkeys[0].source == "clipboard")
-    #expect(saved.hotkeys[0].sink == "clipboard")
-    #expect(model.startupProblem == nil)
+    #expect(harness.plans.isEmpty)
+    #expect(model.startupProblem?.contains("žádnou zkratku") == true)
 }
 
 @MainActor
@@ -95,9 +95,12 @@ import Testing
     let model = harness.startedModel()
     #expect(harness.plans.count == 1)
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightOption)
+    model.applyChange {
+        $0.activeProfile = "local"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .rightOption
+    }
 
     #expect(harness.plans.count == 2)
     if case .doubleTap(let config) = harness.plans[1] {
@@ -117,9 +120,12 @@ import Testing
     harness.granted = false
     let model = harness.startedModel()
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+    model.applyChange {
+        $0.activeProfile = "local"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .rightCommand
+    }
 
     #expect(harness.plans.count == 1)  // only the original combination
     #expect(model.needsAccessibility)
@@ -141,13 +147,16 @@ import Testing
             [.posixPermissions: 0o700], ofItemAtPath: directory.path)
     }
 
-    model.applySettings(
-        activeProfile: "openai", shortcut: "cmd+alt+k",
-        triggerKind: .doubleTap, triggerModifier: .leftOption)
+    model.applyChange {
+        $0.activeProfile = "openai"
+        $0.hotkeys[0].shortcut = "cmd+alt+k"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .leftOption
+    }
 
     #expect(model.startupProblem != nil)
     // The old settings are still what the app is running on.
-    #expect(model.activeProfileName == "local")
+    #expect(model.currentConfig.activeProfile == "local")
 }
 
 @MainActor
@@ -157,9 +166,12 @@ import Testing
     let harness = try Harness(baseConfig)
     let model = harness.startedModel()
 
-    model.applySettings(
-        activeProfile: "neexistuje", shortcut: "cmd+ctrl+d",
-        triggerKind: .combination, triggerModifier: .rightCommand)
+    model.applyChange {
+        $0.activeProfile = "neexistuje"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .combination
+        $0.trigger.modifier = .rightCommand
+    }
 
     #expect(model.startupProblem != nil)
     #expect(try harness.reloadedFromDisk().activeProfile == "local")

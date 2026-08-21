@@ -18,10 +18,10 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Profil") {
-                Picker("Aktivní profil", selection: $form.activeProfile) {
+                Picker("Aktivní profil", selection: $form.config.activeProfile) {
                     ForEach(model.profileNames, id: \.self) { Text($0) }
                 }
-                if let endpoint = model.endpointDescription(for: form.activeProfile) {
+                if let endpoint = model.endpointDescription(for: form.config.activeProfile) {
                     Text(endpoint)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -30,12 +30,12 @@ struct SettingsView: View {
             }
 
             Section("Spouštění") {
-                Picker("Spouštěč", selection: $form.triggerKind) {
+                Picker("Spouštěč", selection: $form.config.trigger.kind) {
                     Text("Klávesová zkratka").tag(TriggerKind.combination)
                     Text("Dvojí stisk modifikátoru").tag(TriggerKind.doubleTap)
                 }
 
-                if form.triggerKind == .combination {
+                if form.config.trigger.kind == .combination {
                     TextField("Zkratka", text: $form.shortcut, prompt: Text("cmd+ctrl+d"))
                     if let warning = form.warning {
                         Label(
@@ -59,7 +59,7 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                     }
-                    Picker("Modifikátor", selection: $form.triggerModifier) {
+                    Picker("Modifikátor", selection: $form.config.trigger.modifier) {
                         ForEach(ModifierKey.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
                     Text(
@@ -79,7 +79,7 @@ struct SettingsView: View {
 
             Section("Klíč pro cloudový profil") {
                 SecureField("API klíč", text: $apiKey)
-                    .disabled(model.keychainAccount(for: form.activeProfile) == nil)
+                    .disabled(model.keychainAccount(for: form.config.activeProfile) == nil)
                 if let keychainProblem {
                     Label(keychainProblem, systemImage: "xmark.circle")
                         .font(.caption)
@@ -109,14 +109,12 @@ struct SettingsView: View {
     }
 
     private func load() {
-        form.load(
-            activeProfile: model.activeProfileName, shortcut: model.shortcutText,
-            triggerKind: model.triggerKind, triggerModifier: model.triggerModifier)
+        form.load(from: model.currentConfig)
         keychainProblem = nil
     }
 
     private func save() {
-        if !apiKey.isEmpty, let account = model.keychainAccount(for: form.activeProfile) {
+        if !apiKey.isEmpty, let account = model.keychainAccount(for: form.config.activeProfile) {
             do {
                 try KeychainSecretResolver().store(apiKey, account: account)
                 apiKey = ""
@@ -128,9 +126,7 @@ struct SettingsView: View {
                 return
             }
         }
-        model.applySettings(
-            activeProfile: form.activeProfile, shortcut: form.shortcut,
-            triggerKind: form.triggerKind, triggerModifier: form.triggerModifier)
+        model.apply(form.config)
         // Saving is the end of the errand. Anything that went wrong is waiting
         // in the menu, which is where the app reports for the rest of its life.
         dismiss()

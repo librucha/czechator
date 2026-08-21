@@ -93,3 +93,15 @@ let baseConfig = """
         source: clipboard
         sink: clipboard
     """
+
+@MainActor
+extension AppModel {
+    /// Edits the configuration in effect and saves it, which is what the
+    /// settings window does: load a copy, change some fields, apply the whole
+    /// thing.
+    func applyChange(_ mutate: (inout Config) -> Void) {
+        var updated = currentConfig
+        mutate(&updated)
+        apply(updated)
+    }
+}

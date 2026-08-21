@@ -49,9 +49,12 @@ import Testing
     let model = harness.startedModel()
     #expect(harness.permissionRequests == 0)
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+    model.applyChange {
+        $0.activeProfile = "local"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .rightCommand
+    }
 
     #expect(harness.permissionRequests == 1)
     #expect(harness.settingsOpened == 0)
@@ -62,9 +65,12 @@ import Testing
     let harness = try Harness(baseConfig)
     let model = harness.startedModel()
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+    model.applyChange {
+        $0.activeProfile = "local"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .rightCommand
+    }
 
     #expect(harness.permissionRequests == 0)
     #expect(model.needsAccessibility == false)
@@ -76,9 +82,12 @@ import Testing
     harness.granted = false
     let model = harness.startedModel()
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .combination, triggerModifier: .rightCommand)
+    model.applyChange {
+        $0.activeProfile = "local"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .combination
+        $0.trigger.modifier = .rightCommand
+    }
 
     #expect(harness.permissionRequests == 0)
     #expect(harness.settingsOpened == 0)
@@ -107,9 +116,12 @@ import Testing
     harness.granted = false
     let model = harness.startedModel()
 
-    model.applySettings(
-        activeProfile: "local", shortcut: "cmd+ctrl+d",
-        triggerKind: .doubleTap, triggerModifier: .rightCommand)
+    model.applyChange {
+        $0.activeProfile = "local"
+        $0.hotkeys[0].shortcut = "cmd+ctrl+d"
+        $0.trigger.kind = .doubleTap
+        $0.trigger.modifier = .rightCommand
+    }
     model.grantAccessibility()
 
     #expect(harness.permissionRequests == 1)
