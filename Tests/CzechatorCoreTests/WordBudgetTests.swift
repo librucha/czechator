@@ -67,3 +67,10 @@ import Testing
     #expect(over.contains { $0.word == "utery" })
     #expect(over.first { $0.word == "utery" }?.allowance == 1)
 }
+
+@Test func wordBudgetRefusesTextAddedToAWhitespaceOnlySegment() {
+    // No words means no allowance to charge the edits against, so the budget
+    // has nothing to say — and silence must not read as approval.
+    #expect(!WordBudget.withinBudget(original: "   ", correction: "ahoj", budget: .builtIn))
+    #expect(WordBudget.withinBudget(original: "   ", correction: "  ", budget: .builtIn))
+}

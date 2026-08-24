@@ -104,7 +104,12 @@ public enum WordBudget {
         let a = Array(normalize(original))
         let b = Array(normalize(correction))
         if a == b { return true }
-        guard EditAlignment.compute(a, b, limit: limit) != nil else { return false }
+        guard let alignment = EditAlignment.compute(a, b, limit: limit) else { return false }
+        // A whitespace-only original has no words, so there is no allowance for
+        // an edit to be charged against. Anything the model put there is
+        // unaccounted for, and `overspentWords` cannot report it — an empty
+        // word list yields an empty overspend list either way.
+        guard !words(in: a).isEmpty else { return alignment.distance == 0 }
         return overspentWords(
             original: original, correction: correction, budget: budget, limit: limit
         ).isEmpty
