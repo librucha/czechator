@@ -58,3 +58,12 @@ import Testing
     #expect(WordBudget.withinBudget(original: "ahoj", correction: "ahoj", budget: .builtIn))
     #expect(WordBudget.withinBudget(original: "", correction: "", budget: .builtIn))
 }
+
+@Test func wordBudgetNamesTheWordThatOverspent() {
+    let over = WordBudget.overspentWords(
+        original: "schuzka se kona v utery",
+        correction: "schůzka se koná ve středu",
+        budget: .builtIn)
+    #expect(over.contains { $0.word == "utery" })
+    #expect(over.first { $0.word == "utery" }?.allowance == 1)
+}

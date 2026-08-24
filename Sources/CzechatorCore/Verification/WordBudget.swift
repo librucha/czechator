@@ -60,6 +60,39 @@ public enum WordBudget {
         return ranges.count - 1
     }
 
+    public struct Overspend: Sendable, Equatable {
+        public let word: String
+        public let spent: Int
+        public let allowance: Int
+    }
+
+    /// Which words went past their allowance, and by how much.
+    ///
+    /// Only for the CLI's debug report: a rejection that says "one segment
+    /// failed" tells you nothing you can act on, and the whole point of the
+    /// report is to be able to fix a prompt from it.
+    public static func overspentWords(
+        original: String, correction: String, budget: EditBudget, limit: Int = 2_000
+    ) -> [Overspend] {
+        let a = Array(normalize(original))
+        let b = Array(normalize(correction))
+        guard a != b, let alignment = EditAlignment.compute(a, b, limit: limit) else { return [] }
+
+        let ranges = words(in: a)
+        guard !ranges.isEmpty else { return [] }
+
+        var spent = [Int](repeating: 0, count: ranges.count)
+        for position in alignment.editPositions {
+            spent[wordIndex(for: position, in: ranges)] += 1
+        }
+        return ranges.enumerated().compactMap { index, range in
+            let allowance = budget.allowance(forWordOfLength: range.count)
+            guard spent[index] > allowance else { return nil }
+            return Overspend(
+                word: String(a[range]), spent: spent[index], allowance: allowance)
+        }
+    }
+
     /// Whether every word stayed inside its own allowance.
     ///
     /// Returns false rather than true when the pair is too long to align —
@@ -71,19 +104,9 @@ public enum WordBudget {
         let a = Array(normalize(original))
         let b = Array(normalize(correction))
         if a == b { return true }
-
-        guard let alignment = EditAlignment.compute(a, b, limit: limit) else { return false }
-
-        let ranges = words(in: a)
-        guard !ranges.isEmpty else { return alignment.distance == 0 }
-
-        var spent = [Int](repeating: 0, count: ranges.count)
-        for position in alignment.editPositions {
-            spent[wordIndex(for: position, in: ranges)] += 1
-        }
-        for (index, range) in ranges.enumerated() {
-            if spent[index] > budget.allowance(forWordOfLength: range.count) { return false }
-        }
-        return true
+        guard EditAlignment.compute(a, b, limit: limit) != nil else { return false }
+        return overspentWords(
+            original: original, correction: correction, budget: budget, limit: limit
+        ).isEmpty
     }
 }

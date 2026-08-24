@@ -262,7 +262,8 @@ a pravidlo, které je vyloučilo.
 public func fold(_ s: String) -> String
 ```
 
-Invariant: `fold(output) == fold(input)` — přesná rovnost řetězců.
+Ve výchozím režimu (`strict`, i výchozí profil `local`) platí invariant
+`fold(output) == fold(input)` — přesná rovnost řetězců.
 
 Chytí tedy nejen změnu struktury, ale i změnu velikosti písmen, přeformátování,
 přidané nebo ubrané mezery a jakýkoli komentář, který by model připsal navíc.
@@ -283,12 +284,34 @@ Před verifikací běží levnější kontrola: model dostává číslovaný sez
 a musí vrátit stejný počet položek se stejným číslováním. Nesouhlasí-li počet,
 dávka se opakuje bez volání verifikátoru.
 
-### Známé omezení
+### Tolerance drobných oprav (per profil)
 
-Verifikace chrání proti změnám struktury, nikoli proti nesprávně doplněné
-diakritice. Anglický text, do kterého by model omylem přidal diakritiku, projde —
-`fold` obou variant je totožný. Řeší se kvalitou modelu a promptem, ne
-architekturou. Pro MVP přijatelné.
+Kromě `strict` existují ještě dva režimy `CorrectionMode` — `minorFixes`
+("Drobné opravy") a `proofread` ("Korektura") — ve kterých smí model opravit i
+překlep, interpunkci nebo velikost písmen. Přesná rovnost `fold(output) ==
+fold(input)` v nich přestává platit a nahrazuje ji **rozpočet editů na slovo**
+(`EditBudget`, per profil: procento délky slova, s dolní hranicí v počtu znaků).
+Zarovnání originálu a opravy počítá Damerau-Levenshteinovu vzdálenost (vč.
+transpozice sousedních znaků) a každý edit se přiřadí slovu, ve kterém padl;
+slovo smí utratit jen tolik editů, kolik mu povoluje jeho rozpočet.
+
+To je **slabší tvrzení** než přesná rovnost: dokazuje jen to, kolik se toho
+u každého slova smělo přepsat, ne že se nepřepsalo nic. Mezery mezi segmenty se
+proto v tolerantních režimech kontrolují samostatně (`DiacriticVerifier.
+gapsMatch`), místo srovnání celého dokumentu jako celku — ta kontrola zůstává
+přesná ve všech režimech, protože chytá chybu ve vlastním skládání, ne v tom, co
+udělal model.
+
+Každý vestavěný profil (`local`) zůstává `strict` a `strict` je výchozí režim
+každého nového profilu — tolerance je vědomá volba per profil, ne změna
+výchozího chování.
+
+Verifikace navíc nikdy nechrání proti nesprávně doplněné diakritice: anglický
+text, do kterého by model omylem přidal diakritiku, projde — `fold` obou variant
+je totožný. To se řeší kvalitou modelu a promptem, ne architekturou.
+
+Plný návrh, motivace a otevřené otázky: viz
+`docs/superpowers/specs/2026-08-24-tolerance-oprav-design.md`.
 
 ## 9. Poskytovatelé modelu a dávkování
 

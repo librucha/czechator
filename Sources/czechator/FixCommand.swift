@@ -34,7 +34,12 @@ struct FixCommand: AsyncParsableCommand {
             corrections: active?.corrections ?? .strict,
             editBudget: active?.editBudget ?? .builtIn,
             verification: active?.verification ?? true,
-            observer: debug ? DebugReporter.observer() : nil)
+            observer: debug
+                ? DebugReporter.observer(
+                    mode: active?.corrections ?? .strict,
+                    budget: active?.editBudget ?? .builtIn,
+                    verification: active?.verification ?? true)
+                : nil)
 
         do {
             let result = try await pipeline.run(ClipboardInput(text: text))

@@ -5,8 +5,17 @@ import Foundation
 /// contaminates the corrected text on stdout.
 enum DebugReporter {
 
-    static func observer() -> PipelineObserver {
-        PipelineObserver(
+    static func observer(
+        mode: CorrectionMode, budget: EditBudget, verification: Bool
+    ) -> PipelineObserver {
+        write("── režim ──")
+        write("  opravy: \(mode.label)")
+        if mode.isTolerant {
+            write("  rozpočet: \(budget.percent) % délky slova, nejméně \(budget.minimum)")
+        }
+        write("  ověřování: \(verification ? "zapnuto" : "VYPNUTO")")
+
+        return PipelineObserver(
             onExchange: { sent, received in
                 write("\n── dávka (\(sent.count) položek) ──")
                 for (index, item) in sent.enumerated() {
@@ -24,6 +33,13 @@ enum DebugReporter {
                 write("  originál: \(visible(original))")
                 write("  model:    \(visible(correction))")
                 write("  rozdíl:   \(difference(original, correction))")
+                for over in WordBudget.overspentWords(
+                    original: original, correction: correction, budget: budget)
+                {
+                    write(
+                        "  přes rozpočet: „\(over.word)\" — \(over.spent) editů, "
+                            + "povoleno \(over.allowance)")
+                }
             })
     }
 

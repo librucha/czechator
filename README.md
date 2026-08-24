@@ -28,7 +28,8 @@ During development `gemma3:4b` turned *"schůzka se koná v úterý"* into *"sch
 se koná ve středu"* — it changed the day of a meeting. Czechator caught it and
 left the clipboard alone.
 
-The guarantee is a single invariant, checked before anything is written:
+By default the guarantee is a single invariant, checked before anything is
+written:
 
 ```
 fold(output) == fold(input)
@@ -36,9 +37,17 @@ fold(output) == fold(input)
 
 where `fold` strips Czech diacritics. If the model changed a word, the casing,
 the whitespace, the structure, or added a comment of its own, the two sides
-differ and the result is refused. **When Czechator cannot do the job safely, it
-does nothing at all and tells you why** — your clipboard is never left worse
-than it was.
+differ and the result is refused.
+
+A profile may relax this. In **Drobné opravy** and **Korektura** the model is
+also allowed to fix typos, punctuation and capitalization, and the check becomes
+a per-word edit budget: no word may change by more than its allowance. That is a
+weaker guarantee — it bounds how much was rewritten, it does not prove that
+nothing was. Every shipped profile stays strict; relaxing it is a deliberate
+choice per profile.
+
+**When Czechator cannot do the job safely, it does nothing at all and tells you
+why** — your clipboard is never left worse than it was.
 
 ## Features
 
