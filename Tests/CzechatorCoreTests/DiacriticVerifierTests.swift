@@ -96,9 +96,14 @@ private func segment(_ text: String) -> Segment {
 @Test func verifierFallsBackToStrictOnAnOversizedSegment() {
     // Above the limit the alignment is not run at all, so a tolerant mode
     // behaves exactly like a strict one rather than accepting blindly.
+    //
+    // The pair differs only in case, which is what makes this test able to
+    // fail: WordBudget lowercases when it normalizes and returns true on
+    // equality before it ever reaches its own length guard, so without the
+    // guard in `accepts` this segment would be accepted.
     let long = String(repeating: "a", count: 2_001)
     let failing = DiacriticVerifier.failingIndices(
-        segments: [segment(long)], corrections: [long + "b"],
+        segments: [segment(long)], corrections: [long.uppercased()],
         policy: .preserve, mode: .proofread, budget: .builtIn)
     #expect(failing == [0])
 }
