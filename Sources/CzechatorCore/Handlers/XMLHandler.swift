@@ -35,9 +35,12 @@ public struct XMLHandler: FormatHandler {
         }
     }
 
-    public func escape(_ corrected: String, like original: Segment) -> String {
+    public func escape(
+        _ corrected: String, like original: Segment, alignment: EditAlignment?
+    ) -> String? {
         MarkupEntities.escape(
-            corrected, style: .detect(in: original.raw, table: MarkupEntities.xmlTable))
+            corrected, style: .detect(in: original.raw, table: MarkupEntities.xmlTable),
+            alignment: alignment)
     }
 
     public func protectedIndices(in segment: Segment) -> Set<Int> {

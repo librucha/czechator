@@ -196,8 +196,14 @@ public struct Pipeline: Sendable {
 
         // Unchanged segments go back as their original bytes, so escaping can
         // never introduce a difference where the model made none.
+        // alignment: nil here preserves today's strict behaviour; real
+        // alignments are wired in by Task 8. escape never actually returns nil
+        // on this path because verification above already guarantees the
+        // correction preserves grapheme count.
         let replacements = zip(segments, corrections).map { segment, corrected in
-            corrected == segment.text ? segment.raw : handler.escape(corrected, like: segment)
+            corrected == segment.text
+                ? segment.raw
+                : handler.escape(corrected, like: segment, alignment: nil) ?? segment.raw
         }
         let output = try Reassembler.splice(
             text, segments: segments, replacements: replacements)
@@ -328,8 +334,12 @@ public struct Pipeline: Sendable {
                 // character on exactly the inputs the masking exists for.
                 let aligned = Self.alignEdgeWhitespace(
                     decoded[offset], like: masks[offset].masked)
+                // alignment: nil preserves the previous strict path; when it
+                // fails, falling back to `aligned` reproduces the old
+                // behaviour of returning the correction unrestored and
+                // leaving the rejection to the verifier's length check.
                 let restored = Self.alignCase(
-                    masks[offset].restore(into: aligned), like: segments[target].text,
+                    masks[offset].restore(into: aligned) ?? aligned, like: segments[target].text,
                     policy: letterCase)
                 corrections[target] = restored
                 cache[segments[target].text] = restored

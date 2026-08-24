@@ -44,7 +44,7 @@ private func handler() throws -> PlainTextHandler {
     let text = "ahoj"
     let handler = try handler()
     let segments = try handler.segments(in: text)
-    #expect(handler.escape("ahoj", like: segments[0]) == "ahoj")
+    #expect(handler.escape("ahoj", like: segments[0], alignment: nil) == "ahoj")
 }
 
 @Test func confidenceIsTheLowFallbackValue() {

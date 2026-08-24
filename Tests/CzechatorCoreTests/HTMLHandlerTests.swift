@@ -38,7 +38,10 @@ private func htmlHandler() throws -> HTMLHandler { try HTMLHandler(rules: .built
     let segments = try handler.segments(in: text)
     let rebuilt = try Reassembler.splice(
         text, segments: segments,
-        replacements: segments.map { handler.escape("příliš žluťoučký kůň", like: $0) })
+        replacements: segments.map {
+            handler.escape("příliš žluťoučký kůň", like: $0, alignment: nil)!
+        }
+    )
     #expect(rebuilt == #"<p class="velky">příliš žluťoučký kůň</p>"#)
 }
 

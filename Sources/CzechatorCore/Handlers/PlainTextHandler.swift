@@ -34,5 +34,7 @@ public struct PlainTextHandler: FormatHandler {
         return result
     }
 
-    public func escape(_ corrected: String, like original: Segment) -> String { corrected }
+    public func escape(
+        _ corrected: String, like original: Segment, alignment: EditAlignment?
+    ) -> String? { corrected }
 }

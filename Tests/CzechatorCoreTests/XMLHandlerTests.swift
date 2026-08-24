@@ -60,7 +60,10 @@ private func xmlHandler() throws -> XMLHandler { try XMLHandler(rules: .builtIn)
     let segments = try handler.segments(in: text)
     let rebuilt = try Reassembler.splice(
         text, segments: segments,
-        replacements: segments.map { handler.escape("příliš žluťoučký kůň", like: $0) })
+        replacements: segments.map {
+            handler.escape("příliš žluťoučký kůň", like: $0, alignment: nil)!
+        }
+    )
     #expect(rebuilt == "<r><a>příliš žluťoučký kůň</a></r>")
 }
 

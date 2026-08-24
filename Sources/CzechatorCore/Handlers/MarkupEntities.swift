@@ -92,17 +92,33 @@ public enum MarkupEntities {
 
     /// Restores the entity spellings the source used, position by position.
     ///
-    /// Never escapes on its own initiative: the model only adds diacritics, so
-    /// no new `&` or `<` can appear, and replaying the recorded spellings is
-    /// therefore exactly reversible. If the model did change the length, the
-    /// indices misalign — the verifier then rejects the result, which is the
-    /// designed fail-closed behaviour.
-    public static func escape(_ s: String, style: MarkupEntityStyle) -> String {
+    /// Never escapes on its own initiative: the model only adds diacritics and
+    /// fixes letters, so no new `&` or `<` can appear, and replaying the
+    /// recorded spellings is therefore reversible.
+    ///
+    /// Returns nil when a recorded position did not survive the correction. The
+    /// fail-closed behaviour this used to get from the verifier's length check
+    /// now lives here, narrowed from "any length change" to "a length change
+    /// across a protected position".
+    public static func escape(
+        _ s: String, style: MarkupEntityStyle, alignment: EditAlignment? = nil
+    ) -> String? {
         guard !style.spellings.isEmpty else { return s }
+
+        var remapped: [Int: String] = [:]
+        if let alignment {
+            for (index, spelling) in style.spellings {
+                guard let moved = alignment.map[index] else { return nil }
+                remapped[moved] = spelling
+            }
+        } else {
+            remapped = style.spellings
+        }
+
         var out = ""
         out.reserveCapacity(s.count)
         for (index, character) in s.enumerated() {
-            if let spelling = style.spellings[index] {
+            if let spelling = remapped[index] {
                 out += spelling
             } else {
                 out.append(character)

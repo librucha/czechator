@@ -92,8 +92,10 @@ import Testing
 
 @Test func maskingGivesUpWhenTheModelChangedTheLength() {
     let mask = FragileWhitespace.mask("a\u{00A0}b")
-    // Indices would be meaningless; the verifier rejects it instead.
-    #expect(mask.restore(into: "a b navic") == "a b navic")
+    // Indices would be meaningless with no alignment to remap them through, so
+    // the rejection is explicit rather than left to the verifier's length
+    // check — see AlignedRestorationTests for the alignment-aware path.
+    #expect(mask.restore(into: "a b navic") == nil)
 }
 
 @Test func crlfRoundTripsThroughAPlainTextDocument() throws {

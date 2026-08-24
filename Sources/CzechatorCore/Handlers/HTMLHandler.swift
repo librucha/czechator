@@ -56,9 +56,12 @@ public struct HTMLHandler: FormatHandler {
         }
     }
 
-    public func escape(_ corrected: String, like original: Segment) -> String {
+    public func escape(
+        _ corrected: String, like original: Segment, alignment: EditAlignment?
+    ) -> String? {
         MarkupEntities.escape(
-            corrected, style: .detect(in: original.raw, table: MarkupEntities.htmlTable))
+            corrected, style: .detect(in: original.raw, table: MarkupEntities.htmlTable),
+            alignment: alignment)
     }
 
     public func protectedIndices(in segment: Segment) -> Set<Int> {

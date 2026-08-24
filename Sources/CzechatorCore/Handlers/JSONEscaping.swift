@@ -156,14 +156,26 @@ public enum JSONEscaping {
         return out
     }
 
-    public static func escape(_ s: String, style: JSONEscapeStyle) -> String {
+    public static func escape(
+        _ s: String, style: JSONEscapeStyle, alignment: EditAlignment? = nil
+    ) -> String? {
+        var spellings = style.spellings
+        if let alignment {
+            var remapped: [Int: String] = [:]
+            for (index, spelling) in style.spellings {
+                guard let moved = alignment.map[index] else { return nil }
+                remapped[moved] = spelling
+            }
+            spellings = remapped
+        }
+
         var out = ""
         out.reserveCapacity(s.count)
 
         for (index, character) in s.enumerated() {
             // A character the source wrote as an escape keeps that spelling,
             // byte for byte.
-            if let spelling = style.spellings[index] {
+            if let spelling = spellings[index] {
                 out += spelling
                 continue
             }

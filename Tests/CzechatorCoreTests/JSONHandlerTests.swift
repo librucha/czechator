@@ -107,7 +107,9 @@ private func jsonHandler() throws -> JSONHandler { try JSONHandler(rules: .built
     let text = #"{"b": 1, "a": "prilis zlutoucky kun"}"#
     let handler = try jsonHandler()
     let segments = try handler.segments(in: text)
-    let replacements = segments.map { handler.escape("příliš žluťoučký kůň", like: $0) }
+    let replacements = segments.map {
+        handler.escape("příliš žluťoučký kůň", like: $0, alignment: nil)!
+    }
     let rebuilt = try Reassembler.splice(text, segments: segments, replacements: replacements)
     #expect(rebuilt == #"{"b": 1, "a": "příliš žluťoučký kůň"}"#)
 }

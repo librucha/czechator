@@ -56,17 +56,33 @@ public struct FragileWhitespace: Sendable, Equatable {
 
     /// Puts the original characters back at their recorded positions.
     ///
-    /// If the model changed the length the indices no longer mean anything, so
-    /// the correction is returned untouched and left to the verifier, which
-    /// will reject it.
-    public func restore(into corrected: String) -> String {
+    /// With `alignment` nil the recorded indices are used as they are — the
+    /// strict path, byte for byte as before. With an alignment each index is
+    /// remapped through it, which is what lets a correction change the length
+    /// without moving a non-breaking space.
+    ///
+    /// Returns nil when a masked position did not survive. It used to return
+    /// the correction unrestored and leave the rejection to the verifier; with
+    /// tolerance the verifier would let that through and the character would be
+    /// lost without a trace, so the failure is now explicit.
+    public func restore(into corrected: String, alignment: EditAlignment? = nil) -> String? {
         guard !positions.isEmpty else { return corrected }
-        guard corrected.count == masked.count else { return corrected }
+
+        var remapped: [Int: Character] = [:]
+        if let alignment {
+            for (index, character) in positions {
+                guard let moved = alignment.map[index] else { return nil }
+                remapped[moved] = character
+            }
+        } else {
+            guard corrected.count == masked.count else { return nil }
+            remapped = positions
+        }
 
         var out = ""
         out.reserveCapacity(corrected.count)
         for (index, character) in corrected.enumerated() {
-            out.append(positions[index] ?? character)
+            out.append(remapped[index] ?? character)
         }
         return out
     }

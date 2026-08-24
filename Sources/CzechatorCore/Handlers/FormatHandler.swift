@@ -10,9 +10,11 @@ public protocol FormatHandler: Sendable {
     func segments(in text: String) throws -> [Segment]
 
     /// Must satisfy `escape(unescape(raw), like: segment) == raw` for the
-    /// formats' realistic inputs. Residual mismatches are caught by the
-    /// verifier, which then refuses to write anything.
-    func escape(_ corrected: String, like original: Segment) -> String
+    /// formats' realistic inputs.
+    ///
+    /// Returns nil when a protected index did not survive the correction — see
+    /// `protectedIndices(in:)`. Nothing is written in that case.
+    func escape(_ corrected: String, like original: Segment, alignment: EditAlignment?) -> String?
 }
 
 extension FormatHandler {
