@@ -43,6 +43,20 @@ private func loadedForm() -> SettingsFormState {
     #expect(form.editedProfileBudget == EditBudget(percent: 45, minimum: 3))
 }
 
+@Test func letterCasePopupFollowsTheActiveProfileNotTheEditedOne() {
+    // Active profile goes tolerant; the profile editor is left open on a
+    // different, still-strict profile. The "Velikost písmen" picker on the
+    // Základní tab is bound to the active profile's setting, so it must go
+    // dead — even though the profile in the editor is strict.
+    var form = loadedForm()
+    form.config.profiles["local"]?.corrections = .proofread
+    form.selectProfile("openai")
+    #expect(form.config.activeProfile == "local")
+    #expect(form.editedProfile == "openai")
+    #expect(form.editedProfileCorrections == .strict)
+    #expect(!form.letterCaseIsEditable)
+}
+
 @Test func correctionSettingsAreStoredOnTheEditedProfileOnly() {
     var form = loadedForm()
     let edited = form.editedProfile

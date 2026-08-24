@@ -334,16 +334,23 @@ Nahrazuje ji **rovnost mezer**: text **mimo** rozsahy segmentů musí být mezi
 vstupem a výstupem bajt po bajtu shodný.
 
 ```swift
-/// The bytes between segments must survive untouched. This is a regression
-/// guard on Reassembler.splice, which is the only thing the fold comparison it
-/// replaces ever really tested.
+/// The bytes between segments must survive untouched.
+///
+/// `expected` is built with the same range arithmetic Reassembler.splice uses
+/// to build `output`, so this equals `output` whenever segments are reported
+/// in document order — which the pipeline always does. The only production
+/// error it can catch is a handler reporting segments out of order; it is not
+/// an independent check on splice itself.
 public static func gapsMatch(
     original: String, output: String, segments: [Segment], replacements: [String]
 ) -> Bool
 ```
 
-Zůstává **přesná ve všech režimech**, včetně vypnuté verifikace — chytá naši
-vlastní chybu ve skládání, ne chybu modelu, a tu chceme hlídat vždycky.
+Zůstává **přesná ve všech režimech**, včetně vypnuté verifikace — segmentová
+posloupnost je náš vlastní kontrakt, ne chyba modelu, a tu chceme hlídat
+vždycky. Není to ale nezávislá druhá implementace skládání: staví na stejné
+aritmetice rozsahů jako `Reassembler.splice` a volá se na jeho vlastním
+výstupu, takže v produkci chytí jen segmenty nahlášené mimo pořadí dokumentu.
 
 Buď si vědom, že je to **slabší** hlídač než ten, který nahrazuje.
 

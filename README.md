@@ -46,8 +46,16 @@ weaker guarantee — it bounds how much was rewritten, it does not prove that
 nothing was. Every shipped profile stays strict; relaxing it is a deliberate
 choice per profile.
 
-**When Czechator cannot do the job safely, it does nothing at all and tells you
-why** — your clipboard is never left worse than it was.
+**With verification on, Czechator cannot do the job safely without doing
+nothing at all and telling you why** — your clipboard is never left worse than
+it was.
+
+A profile can also switch verification off entirely. That is a different thing
+from relaxing the budget: it removes the check altogether, so whatever the
+model returns is written back unexamined — a rewritten sentence, a dropped
+word, a swallowed non-breaking space, anything the model does reaches the
+clipboard as-is. Every shipped profile keeps verification on; turning it off
+is a deliberate choice per profile, for a model you already trust completely.
 
 ## Features
 

@@ -241,7 +241,16 @@ struct SettingsFormState: Equatable {
 
     /// `letterCase` only acts in strict mode: a tolerant mode asks the model to
     /// fix capitalization, so nothing forces the original back.
-    var letterCaseIsEditable: Bool { !editedProfileCorrections.isTolerant }
+    ///
+    /// Reads the ACTIVE profile, not the edited one: unlike `budgetIsEditable`,
+    /// the control this guards (`config.features.letterCase` on the Základní
+    /// tab) is global and takes effect for whichever profile is in use, not
+    /// whichever one happens to be open in the profile editor. Do not change
+    /// this to `editedProfileCorrections` — the two can differ, and the popup
+    /// must follow the profile it actually affects.
+    var letterCaseIsEditable: Bool {
+        config.profiles[config.activeProfile]?.corrections.isTolerant != true
+    }
 
     /// Seeds a budget that suits the mode, once.
     ///

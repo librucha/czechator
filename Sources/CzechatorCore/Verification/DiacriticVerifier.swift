@@ -46,10 +46,16 @@ public enum DiacriticVerifier {
 
     /// The bytes between segments must survive untouched.
     ///
-    /// Replaces the fold comparison, which tolerance makes inexpressible. It is
-    /// an independent second implementation of the splice, and stays exact in
-    /// every mode — including with verification switched off, because what it
-    /// catches is our own reassembly bug rather than anything the model did.
+    /// Replaces the fold comparison, which tolerance makes inexpressible.
+    /// `expected` is built with the same range arithmetic Reassembler.splice
+    /// uses to build `output`, so this equals `output` whenever segments are
+    /// reported in document order — which the pipeline always does. The only
+    /// production error it can catch is a handler reporting segments out of
+    /// order; it is not an independent check on splice itself.
+    ///
+    /// Stays exact in every mode — including with verification switched off,
+    /// because segment order is our own contract, not something the model
+    /// affects.
     ///
     /// Weaker than the comparison it replaces. That is the cost of the feature,
     /// not an oversight.

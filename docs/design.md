@@ -310,6 +310,17 @@ Verifikace navíc nikdy nechrání proti nesprávně doplněné diakritice: angl
 text, do kterého by model omylem přidal diakritiku, projde — `fold` obou variant
 je totožný. To se řeší kvalitou modelu a promptem, ne architekturou.
 
+### Vypnutá verifikace (`verification: false`)
+
+Profil může verifikaci úplně vypnout. Pak neběží ani přesná rovnost, ani
+rozpočet editů, ani opakování napodruhé z „Postup při neshodě" výše — do
+schránky se zapíše, cokoli model vrátí, bez porovnání s originálem. Kontrola
+mezer (`gapsMatch`) běží dál, takže pořadí a hranice segmentů zůstávají
+hlídané, ale obsah segmentu už nikdo neporovnává: model smí segment přepsat na
+zcela jinou větu, nebo potichu ztratit maskovaný znak jako nedělitelnou
+mezeru, a nic to nezachytí. Ve vestavěných profilech je `verification: true`;
+vypnutí je vědomá volba per profil, ne výchozí chování.
+
 Plný návrh, motivace a otevřené otázky: viz
 `docs/superpowers/specs/2026-08-24-tolerance-oprav-design.md`.
 
