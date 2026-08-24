@@ -36,7 +36,7 @@ VERSION := $(shell sed -n 's/.*let version = "\(.*\)".*/\1/p' Sources/CzechatorC
 APP := build/Czechator.app
 BIN := $(APP)/Contents/MacOS/CzechatorApp
 
-.PHONY: app install install-cli icon
+.PHONY: app install install-cli icon reset-accessibility
 
 ICONSET_SRC := img/exports/AppIcon.appiconset
 
@@ -73,6 +73,22 @@ app: icon
 	codesign --force --sign - --timestamp=none $(APP)
 	@echo "hotovo: $(APP) (verze $(VERSION))"
 
+# One source of truth; the bundle identifier lives in the plist.
+BUNDLE_ID := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" Resources/Info.plist)
+
+# Every build is signed ad-hoc, so macOS sees a different application each time
+# and the previous Accessibility entry stays behind — listed and ticked, but
+# pointing at a binary that no longer exists. The double tap then silently does
+# nothing, with the settings window insisting the permission is granted.
+# Clearing the record is what makes the next launch ask again properly.
+#
+# Only ever with the bundle identifier: `tccutil reset Accessibility` on its own
+# would revoke it for every application on the machine.
+reset-accessibility:
+	@tccutil reset Accessibility $(BUNDLE_ID) >/dev/null 2>&1 \
+	  && echo "Zpristupneni vynulovano pro $(BUNDLE_ID) — pri dalsim pouziti je potreba udelit znovu" \
+	  || echo "Zpristupneni se nepodarilo vynulovat, odeberte $(BUNDLE_ID) v Nastaveni systemu rucne"
+
 # Defaults to a user-owned directory, so installing never needs sudo.
 # Override with: make install BINDIR=/usr/local/bin
 BINDIR ?= $(HOME)/.local/bin
@@ -81,6 +97,7 @@ install: app install-cli
 	rm -rf /Applications/Czechator.app
 	cp -R $(APP) /Applications/Czechator.app
 	@echo "nainstalovano do /Applications/Czechator.app"
+	@$(MAKE) --no-print-directory reset-accessibility
 
 install-cli:
 	swift build -c release --product czechator

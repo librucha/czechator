@@ -88,6 +88,11 @@ the menu bar. macOS will ask once for permission to show notifications.
 
 Copy some Czech text without diacritics, press `Cmd+Ctrl+D`, and paste.
 
+`make install` also clears the app's Accessibility record, because the stale
+one would otherwise sit in the list looking granted while pointing at a binary
+that no longer exists — the double tap would then do nothing at all, silently.
+Run `make reset-accessibility` on its own if you ever need to.
+
 ### Just the CLI
 
 ```bash
@@ -347,9 +352,9 @@ rebuild.
   binary, so a rebuilt CLI asks again.
 - **The Accessibility permission has to be granted again after every build.**
   It is tied to the code signature, and the ad-hoc signing this project uses
-  produces a new one each time. The stale entry usually has to be removed from
-  the list in System Settings by hand before the new one takes effect. This
-  affects the double-tap trigger only.
+  produces a new one each time. `make install` clears the stale record for you
+  (`make reset-accessibility` does it on its own), but granting it again is
+  yours to do. This affects the double-tap trigger only.
 - **Neither trigger fires into a secure input field.** While a password field
   has focus, macOS delivers no key events to any application.
 - **Wrong diacritics are not detected.** Verification proves nothing *but*
