@@ -10,8 +10,8 @@ corrected version back on your clipboard.
 
 The point of the tool is what it does **not** touch. If the clipboard holds
 JSON, XML or HTML, only the text nodes are corrected — keys, tags, attributes,
-indentation and formatting come back byte-for-byte identical. And nothing is
-ever written back unless it passes verification.
+indentation and formatting come back byte-for-byte identical. And, with
+verification on, nothing is ever written back unless it passes it.
 
 ```
 $ echo 'Prilis zlutoucky kun upel dabelske ody.' | czechator fix -
@@ -64,7 +64,7 @@ is a deliberate choice per profile, for a model you already trust completely.
 - **Structure-aware.** Plain text, Markdown, JSON, XML and HTML. In structured
   formats only text nodes are corrected; the document is reassembled from the
   original bytes around them.
-- **Verification before every write.** Nothing unverified reaches the clipboard.
+- **Verification before every write, when it's on.** Nothing unverified reaches the clipboard.
 - **Local first.** Runs against [Ollama](https://ollama.com) on your machine, so
   the clipboard never leaves it. Any OpenAI-compatible API works too.
 - **Rich clipboard preserved.** An HTML clipboard is written back as both HTML

@@ -151,7 +151,7 @@ InputSource.read()
    → OutputSink.write(result)
 ```
 
-Zápis do schránky je poslední krok a proběhne **výhradně** po úspěšné verifikaci.
+Zápis do schránky je poslední krok a proběhne **výhradně** po úspěšné verifikaci, je-li zapnutá.
 
 ## 6. Detekce formátu
 
