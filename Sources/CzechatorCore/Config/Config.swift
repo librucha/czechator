@@ -20,10 +20,20 @@ public struct Profile: Sendable, Codable, Equatable {
     public var timeoutSeconds: Double
     /// Never the key itself — only a reference resolved lazily. See SecretRef.
     public var apiKey: SecretRef?
+    /// What this model is trusted to change. Per profile, because
+    /// trustworthiness is a property of the model, not of the tool.
+    public var corrections: CorrectionMode
+    /// How much it is trusted to change. Ignored when `corrections` is strict.
+    public var editBudget: EditBudget
+    /// Whether the result is checked at all.
+    public var verification: Bool
 
     public init(
         kind: ProfileKind, endpoint: URL, model: String,
-        temperature: Double, timeoutSeconds: Double, apiKey: SecretRef? = nil
+        temperature: Double, timeoutSeconds: Double, apiKey: SecretRef? = nil,
+        corrections: CorrectionMode = .strict,
+        editBudget: EditBudget = .builtIn,
+        verification: Bool = true
     ) {
         self.kind = kind
         self.endpoint = endpoint
@@ -31,6 +41,29 @@ public struct Profile: Sendable, Codable, Equatable {
         self.temperature = temperature
         self.timeoutSeconds = timeoutSeconds
         self.apiKey = apiKey
+        self.corrections = corrections
+        self.editBudget = editBudget
+        self.verification = verification
+    }
+
+    /// Hand-written rather than synthesized, like every other config type here.
+    /// Profile was the one that got away with the synthesized version, and
+    /// adding non-optional fields to it would have stopped every existing
+    /// config file from decoding.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            kind: try container.decode(ProfileKind.self, forKey: .kind),
+            endpoint: try container.decode(URL.self, forKey: .endpoint),
+            model: try container.decode(String.self, forKey: .model),
+            temperature: try container.decode(Double.self, forKey: .temperature),
+            timeoutSeconds: try container.decode(Double.self, forKey: .timeoutSeconds),
+            apiKey: try container.decodeIfPresent(SecretRef.self, forKey: .apiKey),
+            corrections: try container.decodeIfPresent(CorrectionMode.self, forKey: .corrections)
+                ?? .strict,
+            editBudget: try container.decodeIfPresent(EditBudget.self, forKey: .editBudget)
+                ?? .builtIn,
+            verification: try container.decodeIfPresent(Bool.self, forKey: .verification) ?? true)
     }
 }
 
