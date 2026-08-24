@@ -67,9 +67,3 @@ public struct TriggerConfig: Sendable, Codable, Equatable {
             debug: try container.decodeIfPresent(Bool.self, forKey: .debug) ?? defaults.debug)
     }
 }
-
-extension Int {
-    fileprivate func clamped(to range: ClosedRange<Int>) -> Int {
-        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
-    }
-}
