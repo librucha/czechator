@@ -14,3 +14,14 @@ public protocol FormatHandler: Sendable {
     /// verifier, which then refuses to write anything.
     func escape(_ corrected: String, like original: Segment) -> String
 }
+
+extension FormatHandler {
+    /// Grapheme indices in the segment's unescaped text that must survive a
+    /// length-changing correction.
+    ///
+    /// An entity or an escape is replayed by position, so losing its slot moves
+    /// it somewhere else in the document. Checking this at verification time
+    /// rather than at escape time is what lets the retry branch have a go at it
+    /// instead of failing the whole document outright.
+    public func protectedIndices(in segment: Segment) -> Set<Int> { [] }
+}

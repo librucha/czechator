@@ -36,4 +36,8 @@ public struct JSONHandler: FormatHandler {
     public func escape(_ corrected: String, like original: Segment) -> String {
         JSONEscaping.escape(corrected, style: .detect(in: original.raw))
     }
+
+    public func protectedIndices(in segment: Segment) -> Set<Int> {
+        Set(JSONEscapeStyle.detect(in: segment.raw).spellings.keys)
+    }
 }

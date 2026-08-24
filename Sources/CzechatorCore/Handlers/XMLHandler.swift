@@ -39,4 +39,10 @@ public struct XMLHandler: FormatHandler {
         MarkupEntities.escape(
             corrected, style: .detect(in: original.raw, table: MarkupEntities.xmlTable))
     }
+
+    public func protectedIndices(in segment: Segment) -> Set<Int> {
+        Set(
+            MarkupEntityStyle.detect(in: segment.raw, table: MarkupEntities.xmlTable)
+                .spellings.keys)
+    }
 }
