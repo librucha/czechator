@@ -319,6 +319,7 @@ nothing is registered, rather than quietly going back to stealing a combination.
 
 ## Tuning segmentation
 
+The rules are in *Settings → Advanced → Segmentation*, and in the config file.
 When the tool corrects something it should have left alone, or skips something
 it should have fixed, `czechator segments` shows what is actually being sent:
 

@@ -196,6 +196,41 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
             }
 
+            Section("Segmentace — společné") {
+                Stepper(
+                    "Nejkratší úsek: \(form.config.segmentation.common.minLength) znaky",
+                    value: $form.config.segmentation.common.minLength, in: 1...50)
+                Toggle(
+                    "Jen úseky obsahující písmena",
+                    isOn: $form.config.segmentation.common.requireLetters)
+                patternList(.commonSkipPatterns)
+            }
+
+            Section("Segmentace — prostý text") {
+                patternList(.plainSkipPatterns)
+            }
+
+            Section("Segmentace — HTML") {
+                Toggle("Přeskočit atributy", isOn: $form.config.segmentation.html.skipAttributes)
+                Toggle("Přeskočit komentáře", isOn: $form.config.segmentation.html.skipComments)
+                patternList(.htmlSkipElements)
+            }
+
+            Section("Segmentace — XML") {
+                Toggle("Přeskočit atributy", isOn: $form.config.segmentation.xml.skipAttributes)
+                Toggle("Přeskočit komentáře", isOn: $form.config.segmentation.xml.skipComments)
+                Toggle(
+                    "Přeskočit instrukce zpracování",
+                    isOn: $form.config.segmentation.xml.skipProcessingInstructions)
+                Toggle("Přeskočit CDATA", isOn: $form.config.segmentation.xml.skipCDATA)
+                patternList(.xmlSkipElements)
+            }
+
+            Section("Segmentace — JSON") {
+                Toggle("Přeskočit klíče", isOn: $form.config.segmentation.json.skipKeys)
+                patternList(.jsonSkipValuesForKeys)
+            }
+
             Section("Vlastní prompt") {
                 TextEditor(text: promptOverride)
                     .font(.body.monospaced())
@@ -345,6 +380,27 @@ struct SettingsView: View {
             set: { form.editedProfileFields?.timeoutSeconds = $0 })
     }
 
+    /// One list, edited as lines.
+    ///
+    /// Bound to the text rather than to the array: folding it back through the
+    /// array on every keystroke would delete the blank line being typed.
+    @ViewBuilder
+    private func patternList(_ list: SettingsFormState.PatternList) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(list.label)
+            TextEditor(
+                text: Binding(
+                    get: { form.listText[list] ?? "" },
+                    set: { form.listText[list] = $0 })
+            )
+            .font(.body.monospaced())
+            .frame(minHeight: 70)
+            Text(list.hint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     /// The config stores nil for "use the built-in prompt"; a text editor needs
     /// a string, and an empty one means the same thing.
     private var promptOverride: Binding<String> {
@@ -357,7 +413,7 @@ struct SettingsView: View {
 
     private var saveBar: some View {
         HStack {
-            if let problem = form.configProblem {
+            if let problem = form.patternProblem ?? form.configProblem {
                 Label(problem, systemImage: "xmark.circle")
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -399,7 +455,7 @@ struct SettingsView: View {
                 return
             }
         }
-        model.apply(form.config)
+        model.apply(form.resolvedConfig)
         // Saving is the end of the errand. Anything that went wrong is waiting
         // in the menu, which is where the app reports for the rest of its life.
         dismiss()

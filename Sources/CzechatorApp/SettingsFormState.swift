@@ -19,6 +19,13 @@ struct SettingsFormState: Equatable {
     /// the active one: you can edit a profile you are not currently using.
     private(set) var editedProfile: String = ""
 
+    /// The lists as typed, one item per line.
+    ///
+    /// Kept as text rather than folded through the array on every keystroke:
+    /// an array cannot hold the blank line you are in the middle of typing, so
+    /// it would vanish under the cursor.
+    var listText: [PatternList: String] = [:]
+
     /// The name in the rename field, which is a draft until it is committed.
     ///
     /// Renaming on every keystroke would work — each intermediate name is
@@ -63,7 +70,7 @@ struct SettingsFormState: Equatable {
     /// file can never disagree about what is acceptable.
     var configProblem: String? {
         do {
-            try config.validate()
+            try resolvedConfig.validate()
             return nil
         } catch {
             return ErrorMessages.describe(error)
@@ -75,6 +82,7 @@ struct SettingsFormState: Equatable {
     /// the double-tap side would leave no trigger at all on switching back.
     var canSave: Bool {
         shortcutIsValid && configProblem == nil && profileNameProblem == nil
+            && patternProblem == nil
     }
 
     /// Replaces the draft with what is actually in effect. The window is not a
@@ -89,7 +97,99 @@ struct SettingsFormState: Equatable {
             ]
         }
         self.config = config
+        for list in PatternList.allCases {
+            listText[list] = Self.text(from: config[keyPath: list.keyPath])
+        }
         selectProfile(config.activeProfile)
+    }
+
+    // MARK: - Segmentation lists
+
+    /// A list the window edits as lines of text.
+    enum PatternList: String, CaseIterable, Sendable, Hashable {
+        case commonSkipPatterns
+        case plainSkipPatterns
+        case htmlSkipElements
+        case xmlSkipElements
+        case jsonSkipValuesForKeys
+
+        /// Whether the entries are compiled. Element and key names are matched
+        /// literally, so a bracket in one is a name, not a broken pattern.
+        var isPattern: Bool {
+            self == .commonSkipPatterns || self == .plainSkipPatterns
+        }
+
+        var keyPath: WritableKeyPath<Config, [String]> {
+            switch self {
+            case .commonSkipPatterns: return \.segmentation.common.skipPatterns
+            case .plainSkipPatterns: return \.segmentation.plain.skipPatterns
+            case .htmlSkipElements: return \.segmentation.html.skipElements
+            case .xmlSkipElements: return \.segmentation.xml.skipElements
+            case .jsonSkipValuesForKeys: return \.segmentation.json.skipValuesForKeys
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .commonSkipPatterns: return "Přeskočit vzory"
+            case .plainSkipPatterns: return "Přeskočit vzory"
+            case .htmlSkipElements: return "Přeskočit elementy"
+            case .xmlSkipElements: return "Přeskočit elementy"
+            case .jsonSkipValuesForKeys: return "Přeskočit hodnoty u klíčů"
+            }
+        }
+
+        var hint: String {
+            switch self {
+            case .commonSkipPatterns, .plainSkipPatterns:
+                return "Regulární výrazy, jeden na řádek."
+            case .htmlSkipElements, .xmlSkipElements:
+                return "Názvy elementů, jeden na řádek. Přeskočí se i vše uvnitř."
+            case .jsonSkipValuesForKeys:
+                return "Názvy klíčů, jeden na řádek."
+            }
+        }
+    }
+
+    /// One entry per non-empty line, trimmed.
+    ///
+    /// A blank line must not become an entry: as a regular expression the empty
+    /// string matches everything, which would skip the whole document.
+    static func items(from text: String) -> [String] {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    static func text(from items: [String]) -> String {
+        items.joined(separator: "\n")
+    }
+
+    /// The first entry that will not compile, in the words the field needs.
+    ///
+    /// Checked the way `SegmentBuilder` will build it, so a pattern accepted
+    /// here cannot fail later at the first correction, far from the window that
+    /// accepted it.
+    var patternProblem: String? {
+        for list in PatternList.allCases where list.isPattern {
+            for pattern in Self.items(from: listText[list] ?? "") {
+                do {
+                    _ = try NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines])
+                } catch {
+                    return "Vzor „\(pattern)“ není platný regulární výraz."
+                }
+            }
+        }
+        return nil
+    }
+
+    /// The draft with the line-edited lists folded back in — what gets saved.
+    var resolvedConfig: Config {
+        var resolved = config
+        for list in PatternList.allCases {
+            resolved[keyPath: list.keyPath] = Self.items(from: listText[list] ?? "")
+        }
+        return resolved
     }
 
     // MARK: - Profiles
