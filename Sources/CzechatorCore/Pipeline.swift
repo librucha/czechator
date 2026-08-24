@@ -230,9 +230,21 @@ public struct Pipeline: Sendable {
             // What switching verification off gives up is checking the model,
             // not the guard against our own reassembly.
             for index in segments.indices where corrections[index] != segments[index].text {
-                alignments[index] = EditAlignment.compute(
+                if let alignment = EditAlignment.compute(
                     Array(segments[index].text), Array(corrections[index]),
                     limit: DiacriticVerifier.toleranceLimit)
+                {
+                    alignments[index] = alignment
+                    continue
+                }
+                // Past the alignment limit there is no index map to be had, and
+                // nothing checked the correction's length either. Escaping a
+                // segment that records a spelling would replay it at the old
+                // index; refuse instead. A segment with nothing to protect is
+                // escaped index-independently, so it is let through.
+                guard protectedIndices[index]?.isEmpty ?? true else {
+                    throw PipelineError.verificationFailed(failedSegments: 1)
+                }
             }
         }
 

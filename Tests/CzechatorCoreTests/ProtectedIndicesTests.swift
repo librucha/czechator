@@ -37,3 +37,14 @@ import Testing
         range: raw.startIndex..<raw.endIndex, raw: raw, text: "a\nb", kind: .jsonString)
     #expect(handler.protectedIndices(in: segment) == [1])
 }
+
+@Test func protectedIndicesDispatchThroughTheProtocol() throws {
+    // The pipeline holds an `any FormatHandler`, and a method that lives only
+    // in the protocol extension is dispatched statically — which silently sent
+    // every call to the empty default and made this whole branch dead code.
+    let handler: any FormatHandler = try HTMLHandler(rules: .builtIn)
+    let raw = "a &amp; b"
+    let segment = Segment(
+        range: raw.startIndex..<raw.endIndex, raw: raw, text: "a & b", kind: .htmlText)
+    #expect(handler.protectedIndices(in: segment) == [2])
+}

@@ -432,21 +432,6 @@ private let dropAnAccent: @Sendable ([String]) -> [String] = { items in
     }
 }
 
-@Test func probeMutation() async throws {
-    let h = try HTMLHandler(rules: .builtIn)
-    let raw = "<p>dobr&eacute; rano</p>"
-    let segs = try h.segments(in: raw)
-    for sg in segs {
-        print("PROBE seg raw=[\(sg.raw)] text=[\(sg.text)] prot=\(h.protectedIndices(in: sg))")
-        let al = EditAlignment.compute(Array(sg.text), Array("dobr rano"))
-        print("PROBE align map=\(al!.map.sorted{$0.key<$1.key}) edits=\(al!.editPositions)")
-        print(
-            "PROBE budget=\(WordBudget.withinBudget(original: sg.text, correction: "dobr rano", budget: .builtIn))"
-        )
-        print("PROBE escapeNil=\(h.escape("dobr rano", like: sg, alignment: nil) ?? "NIL")")
-    }
-}
-
 @Test func pipelineRetriesTheSegmentWhoseEntityMovedAndAcceptsTheSecondTry() async throws {
     // The protected-index check does not only refuse: it routes the segment
     // through the retry, so a model that gets it right the second time gets the
@@ -472,4 +457,30 @@ private let dropAnAccent: @Sendable ([String]) -> [String] = { items in
 
     #expect(result.correctedText == "<p>dobr&eacute; ráno</p>")
     #expect(provider.attempts == 2)
+}
+
+@Test func pipelineWithVerificationOffRefusesASegmentTooLongToAlign() async throws {
+    // Past DiacriticVerifier.toleranceLimit there is no index map, and with
+    // verification off nothing has checked the length either. Escaping the
+    // entity at its recorded index would move it; the run has to stop instead.
+    let filler = String(repeating: "dobre rano ", count: 220)
+    #expect(filler.count > DiacriticVerifier.toleranceLimit)
+    let long = FakeProvider { $0.map { $0 + " navic" } }
+
+    await #expect(throws: PipelineError.self) {
+        _ = try await tolerantPipeline(long, corrections: .strict, verification: false)
+            .run(ClipboardInput(text: "<p>a &amp; \(filler)</p>", uti: "public.html"))
+    }
+}
+
+@Test func pipelineWithVerificationOffStillHandlesALongSegmentWithNothingToProtect() async throws {
+    // The mirror: no recorded spelling means escaping cannot relocate anything,
+    // so a paragraph past the limit must still go through. Refusing it would
+    // make the mode useless on exactly the long-form text it exists for.
+    let filler = String(repeating: "dobre rano ", count: 220)
+    let long = FakeProvider { $0.map { $0 + " navic" } }
+    let result = try await tolerantPipeline(long, corrections: .strict, verification: false)
+        .run(ClipboardInput(text: filler))
+    #expect(result.correctedText.contains("navic"))
+    #expect(result.changedSegmentCount == 1)
 }
