@@ -402,7 +402,8 @@ public struct Pipeline: Sendable {
             // position afterwards; see FragileWhitespace.
             let masks = batch.map { FragileWhitespace.mask(subset[$0].text) }
             let items = masks.map(\.masked)
-            let prompt = PromptBuilder.build(items: items, systemOverride: promptOverride)
+            let prompt = PromptBuilder.build(
+                items: items, mode: self.corrections, systemOverride: promptOverride)
 
             let answer: String
             do {

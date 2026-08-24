@@ -50,7 +50,76 @@ public enum PromptBuilder {
         3. This is English, leave it alone.
         """
 
-    public static func build(items: [String], systemOverride: String?) -> Prompt {
-        Prompt(system: systemOverride ?? defaultSystem, user: NumberedList.encode(items))
+    /// Instructions in English, examples in Czech, for the same reason
+    /// `defaultSystem` is: small instruct models follow English rules better,
+    /// but only Czech examples demonstrate the task.
+    ///
+    /// A separate constant rather than `defaultSystem` plus a clause: Ollama
+    /// caches the prefill for a stable prefix, and three fixed strings keep
+    /// that intact where a composed one would not.
+    public static let minorFixesSystem = """
+        You restore Czech diacritics and fix small typing mistakes.
+
+        Rules:
+        - Output ONLY the numbered list, with the same count and numbering as the input.
+        - You MAY add Czech accents: a->á, e->é/ě, i->í, o->ó, u->ú/ů, y->ý,
+          c->č, d->ď, n->ň, r->ř, s->š, t->ť, z->ž.
+        - You MAY fix an obvious typing mistake: a swapped, missing or doubled letter,
+          a misplaced space, a missing comma or period, a wrong i/y or s/z.
+        - You MAY fix capitalization at the start of a sentence.
+        - NEVER replace a word with a different word, a synonym or a translation.
+        - NEVER reorder, reword, reformat, shorten or explain anything.
+        - Change as little as possible. If a word is already correct, leave it alone.
+        - Preserve all other non-letter characters exactly.
+        - The sequences \\n, \\r, \\t and \\\\ are literal two-character escapes. Keep them as-is.
+        - Leave text that is not Czech unchanged.
+
+        Example
+        input:
+        1. Prilis zlutoucky kun upel dabelske ody.
+        2. kdy zjsem sel domu bylo uz pozde
+        3. This is English, leave it alone.
+        output:
+        1. Příliš žluťoučký kůň úpěl ďábelské ódy.
+        2. Když jsem šel domů, bylo už pozdě.
+        3. This is English, leave it alone.
+        """
+
+    public static let proofreadSystem = """
+        You are a Czech proofreader.
+
+        Rules:
+        - Output ONLY the numbered list, with the same count and numbering as the input.
+        - Restore Czech accents, fix typing mistakes, spelling, punctuation,
+          capitalization and grammatical agreement.
+        - NEVER replace a word with a synonym, and never translate.
+        - NEVER reorder sentences, reword for style, shorten, expand or explain.
+        - Change as little as possible. If a sentence is already correct, repeat it verbatim.
+        - The sequences \\n, \\r, \\t and \\\\ are literal two-character escapes. Keep them as-is.
+        - Leave text that is not Czech unchanged.
+
+        Example
+        input:
+        1. Prilis zlutoucky kun upel dabelske ody.
+        2. kdy zjsem sel domu bilo uz pozde a dvere bili zamcene
+        3. This is English, leave it alone.
+        output:
+        1. Příliš žluťoučký kůň úpěl ďábelské ódy.
+        2. Když jsem šel domů, bylo už pozdě a dveře byly zamčené.
+        3. This is English, leave it alone.
+        """
+
+    public static func system(for mode: CorrectionMode) -> String {
+        switch mode {
+        case .strict: return defaultSystem
+        case .minorFixes: return minorFixesSystem
+        case .proofread: return proofreadSystem
+        }
+    }
+
+    public static func build(
+        items: [String], mode: CorrectionMode = .strict, systemOverride: String?
+    ) -> Prompt {
+        Prompt(system: systemOverride ?? system(for: mode), user: NumberedList.encode(items))
     }
 }
