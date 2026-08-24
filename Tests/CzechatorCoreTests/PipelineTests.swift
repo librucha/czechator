@@ -401,3 +401,75 @@ private let dropTheSpace: @Sendable ([String]) -> [String] = { items in
         ).run(ClipboardInput(text: "v\u{00A0}ctvrtek"))
     }
 }
+
+private let dropAnAccent: @Sendable ([String]) -> [String] = { items in
+    items.map { $0.replacingOccurrences(of: "dobré", with: "dobr") }
+}
+
+@Test func pipelineRefusesATolerantFixThatDeletedAnEntity() async throws {
+    // The é of "dobré" is written as an entity, so index 4 is protected. The
+    // model deletes it: one edit on a five-letter word, which the budget waves
+    // through. The only thing left to catch it is the protected index no longer
+    // surviving the alignment — without that check the entity would be replayed
+    // at index 4 of "dobr rano" and land in the middle of a different word.
+    await #expect(throws: PipelineError.self) {
+        _ = try await tolerantPipeline(
+            FakeProvider(transform: dropAnAccent), corrections: .minorFixes
+        ).run(ClipboardInput(text: "<p>dobr&eacute; rano</p>", uti: "public.html"))
+    }
+}
+
+@Test func pipelineWithVerificationOffStillRefusesToMoveAnEntity() async throws {
+    // Switching verification off gives up checking the model, not the check on
+    // our own reassembly. A strict run with no verification still has to notice
+    // that the entity's index did not survive, or it writes a document neither
+    // the model nor the original ever contained.
+    await #expect(throws: PipelineError.self) {
+        _ = try await tolerantPipeline(
+            FakeProvider(transform: dropAnAccent), corrections: .strict,
+            verification: false
+        ).run(ClipboardInput(text: "<p>dobr&eacute; rano</p>", uti: "public.html"))
+    }
+}
+
+@Test func probeMutation() async throws {
+    let h = try HTMLHandler(rules: .builtIn)
+    let raw = "<p>dobr&eacute; rano</p>"
+    let segs = try h.segments(in: raw)
+    for sg in segs {
+        print("PROBE seg raw=[\(sg.raw)] text=[\(sg.text)] prot=\(h.protectedIndices(in: sg))")
+        let al = EditAlignment.compute(Array(sg.text), Array("dobr rano"))
+        print("PROBE align map=\(al!.map.sorted{$0.key<$1.key}) edits=\(al!.editPositions)")
+        print(
+            "PROBE budget=\(WordBudget.withinBudget(original: sg.text, correction: "dobr rano", budget: .builtIn))"
+        )
+        print("PROBE escapeNil=\(h.escape("dobr rano", like: sg, alignment: nil) ?? "NIL")")
+    }
+}
+
+@Test func pipelineRetriesTheSegmentWhoseEntityMovedAndAcceptsTheSecondTry() async throws {
+    // The protected-index check does not only refuse: it routes the segment
+    // through the retry, so a model that gets it right the second time gets the
+    // document written instead of turned away. The entity has to come back in
+    // its original spelling, at its original place.
+    final class FlakyEntityProvider: LLMProvider, @unchecked Sendable {
+        var attempts = 0
+        func complete(_ prompt: Prompt) async throws -> String {
+            attempts += 1
+            let items = try NumberedList.decode(
+                prompt.user, expectedCount: prompt.user.split(separator: "\n").count)
+            return NumberedList.encode(
+                items.map {
+                    attempts == 1
+                        ? $0.replacingOccurrences(of: "dobré", with: "dobr")
+                        : $0.replacingOccurrences(of: "rano", with: "ráno")
+                })
+        }
+    }
+    let provider = FlakyEntityProvider()
+    let result = try await tolerantPipeline(provider, corrections: .minorFixes)
+        .run(ClipboardInput(text: "<p>dobr&eacute; rano</p>", uti: "public.html"))
+
+    #expect(result.correctedText == "<p>dobr&eacute; ráno</p>")
+    #expect(provider.attempts == 2)
+}

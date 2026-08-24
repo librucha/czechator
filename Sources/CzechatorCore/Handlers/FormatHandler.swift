@@ -15,9 +15,7 @@ public protocol FormatHandler: Sendable {
     /// Returns nil when a protected index did not survive the correction — see
     /// `protectedIndices(in:)`. Nothing is written in that case.
     func escape(_ corrected: String, like original: Segment, alignment: EditAlignment?) -> String?
-}
 
-extension FormatHandler {
     /// Grapheme indices in the segment's unescaped text that must survive a
     /// length-changing correction.
     ///
@@ -25,5 +23,15 @@ extension FormatHandler {
     /// it somewhere else in the document. Checking this at verification time
     /// rather than at escape time is what lets the retry branch have a go at it
     /// instead of failing the whole document outright.
+    ///
+    /// A requirement rather than only an extension member: the pipeline holds
+    /// an `any FormatHandler`, and a method that lives solely in the extension
+    /// is dispatched statically, so every handler's override would be skipped
+    /// and every segment would report no protected indices at all.
+    func protectedIndices(in segment: Segment) -> Set<Int>
+}
+
+extension FormatHandler {
+    /// Formats with no escaping syntax of their own protect nothing.
     public func protectedIndices(in segment: Segment) -> Set<Int> { [] }
 }

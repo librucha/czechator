@@ -222,8 +222,13 @@ public struct Pipeline: Sendable {
                     throw PipelineError.verificationFailed(failedSegments: failing.count)
                 }
             }
-        } else if self.corrections.isTolerant {
-            // Escaping still needs the index map even when nothing is checked.
+        } else {
+            // Escaping still needs the index map even when nothing is checked,
+            // and in every mode: without it the recorded entity and escape
+            // spellings are replayed at their ORIGINAL indices, so a correction
+            // of a different length silently relocates them instead of failing.
+            // What switching verification off gives up is checking the model,
+            // not the guard against our own reassembly.
             for index in segments.indices where corrections[index] != segments[index].text {
                 alignments[index] = EditAlignment.compute(
                     Array(segments[index].text), Array(corrections[index]),
