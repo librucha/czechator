@@ -84,12 +84,18 @@ public struct Pipeline: Sendable {
     private let limits: Limits
     private let promptOverride: String?
     private let letterCase: LetterCasePolicy
+    private let corrections: CorrectionMode
+    private let editBudget: EditBudget
+    private let verification: Bool
     private let observer: PipelineObserver?
 
     public init(
         registry: FormatRegistry, provider: any LLMProvider,
         limits: Limits, promptOverride: String?,
         letterCase: LetterCasePolicy = .preserve,
+        corrections: CorrectionMode = .strict,
+        editBudget: EditBudget = .builtIn,
+        verification: Bool = true,
         observer: PipelineObserver? = nil
     ) {
         self.registry = registry
@@ -97,6 +103,9 @@ public struct Pipeline: Sendable {
         self.limits = limits
         self.promptOverride = promptOverride
         self.letterCase = letterCase
+        self.corrections = corrections
+        self.editBudget = editBudget
+        self.verification = verification
         self.observer = observer
     }
 
@@ -164,8 +173,16 @@ public struct Pipeline: Sendable {
             return Corrected(text: text, segmentCount: 0, changedCount: 0)
         }
 
+        // Computed once: `detect` walks the raw segment, and the retry branch
+        // would otherwise repeat that walk for every segment on every round.
+        let protectedIndices: [Int: Set<Int>] = Dictionary(
+            uniqueKeysWithValues: segments.indices.map {
+                ($0, handler.protectedIndices(in: segments[$0]))
+            })
+
         var corrections = [String](repeating: "", count: segments.count)
         var pending: [Int] = []
+        var restorationFailures: Set<Int> = []
         for (index, segment) in segments.enumerated() {
             if let hit = cache[segment.text] {
                 corrections[index] = hit
@@ -174,48 +191,111 @@ public struct Pipeline: Sendable {
             }
         }
         if !pending.isEmpty {
-            try await fill(&corrections, indices: pending, segments: segments, cache: &cache)
+            try await fill(
+                &corrections, indices: pending, segments: segments, cache: &cache,
+                restorationFailures: &restorationFailures)
         }
 
-        // Verification runs BEFORE escaping, on the unescaped pair. Handlers'
-        // escape routines assume the correction preserves grapheme count; this
-        // is the check that guarantees it, so the order must not be swapped.
-        let failing = DiacriticVerifier.failingIndices(
-            segments: segments, corrections: corrections, policy: letterCase)
-        if !failing.isEmpty {
-            try await fill(&corrections, indices: failing, segments: segments, cache: &cache)
-            let stillFailing = DiacriticVerifier.failingIndices(
-                segments: segments, corrections: corrections, policy: letterCase)
-            guard stillFailing.isEmpty else {
-                for index in stillFailing {
-                    observer?.onRejected(segments[index].text, corrections[index])
+        // Verification runs BEFORE escaping, on the unescaped pair, so the
+        // alignment computed here is the one escaping then replays.
+        var alignments: [Int: EditAlignment] = [:]
+
+        if verification {
+            var failing = failures(
+                segments: segments, corrections: corrections,
+                restorationFailures: restorationFailures,
+                protectedIndices: protectedIndices, alignments: &alignments)
+            if !failing.isEmpty {
+                restorationFailures.removeAll()
+                alignments.removeAll()
+                try await fill(
+                    &corrections, indices: failing, segments: segments, cache: &cache,
+                    restorationFailures: &restorationFailures)
+                failing = failures(
+                    segments: segments, corrections: corrections,
+                    restorationFailures: restorationFailures,
+                    protectedIndices: protectedIndices, alignments: &alignments)
+                guard failing.isEmpty else {
+                    for index in failing {
+                        observer?.onRejected(segments[index].text, corrections[index])
+                    }
+                    throw PipelineError.verificationFailed(failedSegments: failing.count)
                 }
-                throw PipelineError.verificationFailed(failedSegments: stillFailing.count)
+            }
+        } else if self.corrections.isTolerant {
+            // Escaping still needs the index map even when nothing is checked.
+            for index in segments.indices where corrections[index] != segments[index].text {
+                alignments[index] = EditAlignment.compute(
+                    Array(segments[index].text), Array(corrections[index]),
+                    limit: DiacriticVerifier.toleranceLimit)
             }
         }
 
         // Unchanged segments go back as their original bytes, so escaping can
         // never introduce a difference where the model made none.
-        // alignment: nil here preserves today's strict behaviour; real
-        // alignments are wired in by Task 8. escape never actually returns nil
-        // on this path because verification above already guarantees the
-        // correction preserves grapheme count.
-        let replacements = zip(segments, corrections).map { segment, corrected in
-            corrected == segment.text
-                ? segment.raw
-                : handler.escape(corrected, like: segment, alignment: nil) ?? segment.raw
+        var replacements: [String] = []
+        replacements.reserveCapacity(segments.count)
+        for (index, segment) in segments.enumerated() {
+            if corrections[index] == segment.text {
+                replacements.append(segment.raw)
+                continue
+            }
+            guard
+                let escaped = handler.escape(
+                    corrections[index], like: segment, alignment: alignments[index])
+            else {
+                throw PipelineError.verificationFailed(failedSegments: 1)
+            }
+            replacements.append(escaped)
         }
+
         let output = try Reassembler.splice(
             text, segments: segments, replacements: replacements)
         guard
-            DiacriticVerifier.documentMatches(
-                original: text, corrected: output, policy: letterCase)
+            DiacriticVerifier.gapsMatch(
+                original: text, output: output, segments: segments, replacements: replacements)
         else {
             throw PipelineError.verificationFailed(failedSegments: 0)
         }
 
         let changed = zip(segments, corrections).reduce(0) { $1.0.text != $1.1 ? $0 + 1 : $0 }
         return Corrected(text: output, segmentCount: segments.count, changedCount: changed)
+    }
+
+    /// Segments that must be retried, and the index maps the survivors need.
+    ///
+    /// Two independent reasons to fail: the correction went past the budget, or
+    /// it moved a protected index out from under an entity or a masked space.
+    /// Both go through the retry branch rather than straight to an error.
+    private func failures(
+        segments: [Segment], corrections: [String],
+        restorationFailures: Set<Int>,
+        protectedIndices: [Int: Set<Int>],
+        alignments: inout [Int: EditAlignment]
+    ) -> [Int] {
+        var failing = Set(
+            DiacriticVerifier.failingIndices(
+                segments: segments, corrections: corrections, policy: letterCase,
+                mode: self.corrections, budget: editBudget))
+        failing.formUnion(restorationFailures)
+
+        guard self.corrections.isTolerant else { return failing.sorted() }
+
+        for index in segments.indices where !failing.contains(index) {
+            guard corrections[index] != segments[index].text else { continue }
+            guard
+                let alignment = EditAlignment.compute(
+                    Array(segments[index].text), Array(corrections[index]),
+                    limit: DiacriticVerifier.toleranceLimit)
+            else { continue }
+            let protected = protectedIndices[index] ?? []
+            if protected.contains(where: { alignment.map[$0] == nil }) {
+                failing.insert(index)
+            } else {
+                alignments[index] = alignment
+            }
+        }
+        return failing.sorted()
     }
 
     /// Restores the segment's own leading and trailing whitespace.
@@ -255,9 +335,16 @@ public struct Pipeline: Sendable {
     /// folds away both case and diacritics first. Anything else stays as the
     /// model wrote it and still faces the verifier.
     static func alignCase(
-        _ corrected: String, like original: String, policy: LetterCasePolicy = .preserve
+        _ corrected: String, like original: String,
+        policy: LetterCasePolicy = .preserve, mode: CorrectionMode = .strict
     ) -> String {
-        guard policy != .model, corrected.count == original.count else { return corrected }
+        // A tolerant mode asked the model to fix capitalization, so forcing the
+        // original back would undo the very thing that was requested. The
+        // consequence is that `letterCase` does nothing outside strict mode,
+        // and the settings window greys it out to say so.
+        guard !mode.isTolerant, policy != .model, corrected.count == original.count else {
+            return corrected
+        }
 
         var out = ""
         out.reserveCapacity(corrected.count)
@@ -288,7 +375,8 @@ public struct Pipeline: Sendable {
         _ corrections: inout [String],
         indices: [Int],
         segments: [Segment],
-        cache: inout [String: String]
+        cache: inout [String: String],
+        restorationFailures: inout Set<Int>
     ) async throws {
         let subset = indices.map { segments[$0] }
 
@@ -334,13 +422,25 @@ public struct Pipeline: Sendable {
                 // character on exactly the inputs the masking exists for.
                 let aligned = Self.alignEdgeWhitespace(
                     decoded[offset], like: masks[offset].masked)
-                // alignment: nil preserves the previous strict path; when it
-                // fails, falling back to `aligned` reproduces the old
-                // behaviour of returning the correction unrestored and
-                // leaving the rejection to the verifier's length check.
+                let maskAlignment =
+                    self.corrections.isTolerant
+                    ? EditAlignment.compute(
+                        Array(masks[offset].masked), Array(aligned),
+                        limit: DiacriticVerifier.toleranceLimit)
+                    : nil
+                guard let unmasked = masks[offset].restore(into: aligned, alignment: maskAlignment)
+                else {
+                    // The masked character did not survive. Recording the
+                    // failure rather than storing the original keeps the retry
+                    // branch honest: storing the original would look unchanged
+                    // and sail through verification.
+                    restorationFailures.insert(target)
+                    corrections[target] = aligned
+                    continue
+                }
                 let restored = Self.alignCase(
-                    masks[offset].restore(into: aligned) ?? aligned, like: segments[target].text,
-                    policy: letterCase)
+                    unmasked, like: segments[target].text,
+                    policy: letterCase, mode: self.corrections)
                 corrections[target] = restored
                 cache[segments[target].text] = restored
             }

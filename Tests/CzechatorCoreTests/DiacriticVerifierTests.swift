@@ -3,32 +3,6 @@ import Testing
 
 @testable import CzechatorCore
 
-@Test func acceptsPureDiacriticRestoration() {
-    #expect(
-        DiacriticVerifier.documentMatches(
-            original: "Prilis zlutoucky kun", corrected: "Příliš žluťoučký kůň"))
-}
-
-@Test func rejectsAddedText() {
-    #expect(
-        !DiacriticVerifier.documentMatches(
-            original: "Prilis zlutoucky kun", corrected: "Příliš žluťoučký kůň. Hotovo!"))
-}
-
-@Test func rejectsReformatting() {
-    #expect(
-        !DiacriticVerifier.documentMatches(
-            original: #"{"a":"x"}"#, corrected: #"{ "a": "x" }"#))
-}
-
-@Test func rejectsCaseChanges() {
-    #expect(!DiacriticVerifier.documentMatches(original: "ahoj", corrected: "Ahoj"))
-}
-
-@Test func rejectsWhitespaceChanges() {
-    #expect(!DiacriticVerifier.documentMatches(original: "a  b", corrected: "a b"))
-}
-
 @Test func identifiesOnlyTheOffendingSegments() {
     let text = "prvni druhy treti"
     func segment(_ s: String) -> Segment {

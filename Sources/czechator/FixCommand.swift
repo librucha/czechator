@@ -24,12 +24,16 @@ struct FixCommand: AsyncParsableCommand {
         let environment = try CLIEnvironment.load(configPath: config, profileName: profile)
         let text = try CLIEnvironment.readInput(path: path)
 
+        let active = environment.config.active
         let pipeline = Pipeline(
             registry: environment.registry,
             provider: try environment.makeProvider(),
             limits: environment.config.limits,
             promptOverride: environment.config.prompt.override,
             letterCase: environment.config.features.letterCase,
+            corrections: active?.corrections ?? .strict,
+            editBudget: active?.editBudget ?? .builtIn,
+            verification: active?.verification ?? true,
             observer: debug ? DebugReporter.observer() : nil)
 
         do {

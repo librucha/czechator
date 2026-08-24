@@ -1,22 +1,13 @@
-/// The tool's single hard guarantee: after folding away Czech diacritics the
-/// output must be *exactly* the input. This catches structural edits, casing
-/// changes, reformatting, and any commentary the model volunteers.
+/// In strict mode the tool's hard guarantee: after folding away Czech
+/// diacritics a segment's correction must be *exactly* the original. This
+/// catches structural edits, casing changes, reformatting, and any commentary
+/// the model volunteers. A tolerant mode trades it for the weaker per-word
+/// budget in `WordBudget`.
 ///
 /// It deliberately does NOT catch wrong diacritics — English text the model
 /// decorated folds back to the same string. That is a prompt and model quality
 /// problem, not an architectural one.
 public enum DiacriticVerifier {
-
-    public static func documentMatches(
-        original: String, corrected: String,
-        policy: LetterCasePolicy = .preserve
-    ) -> Bool {
-        // The document check exists to catch reassembly mistakes, which never
-        // involve case. Once any case freedom is granted, it compares
-        // case-insensitively; the per-segment check above is the precise one.
-        let documentPolicy: LetterCasePolicy = policy == .preserve ? .preserve : .model
-        return documentPolicy.normalize(original) == documentPolicy.normalize(corrected)
-    }
 
     /// A segment longer than this is compared strictly whatever the mode says:
     /// the alignment is O(n*m) and not worth running on a paragraph that size.

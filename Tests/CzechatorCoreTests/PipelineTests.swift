@@ -299,3 +299,105 @@ private func pipeline(_ provider: any LLMProvider, limits: Limits = .builtIn) th
     let result = try await pipeline.run(ClipboardInput(text: "proc se to stalo"))
     #expect(result.correctedText == "Proc se to stalo")
 }
+
+private func tolerantPipeline(
+    _ provider: any LLMProvider,
+    corrections: CorrectionMode = .strict,
+    editBudget: EditBudget = .builtIn,
+    verification: Bool = true
+) throws -> Pipeline {
+    Pipeline(
+        registry: try FormatRegistry(rules: .builtIn),
+        provider: provider,
+        limits: .builtIn,
+        promptOverride: nil,
+        letterCase: .preserve,
+        corrections: corrections,
+        editBudget: editBudget,
+        verification: verification)
+}
+
+private let fixTypo: @Sendable ([String]) -> [String] = { items in
+    items.map {
+        $0.replacingOccurrences(of: "Kndeliky", with: "Knedlíky")
+            .replacingOccurrences(of: "dobre", with: "dobré")
+    }
+}
+
+@Test func pipelineTolerantModeAcceptsATypoFix() async throws {
+    // "kndeliky" -> "knedliky" is one transposition on an eight-letter word,
+    // which is exactly the default allowance.
+    let result = try await tolerantPipeline(
+        FakeProvider(transform: fixTypo), corrections: .minorFixes
+    ).run(ClipboardInput(text: "Kndeliky jsou dobre."))
+    #expect(result.correctedText == "Knedlíky jsou dobré.")
+}
+
+@Test func pipelineStrictModeRefusesTheSameTypoFix() async throws {
+    // The provider is deterministic, so the retry returns the same answer and
+    // the document is refused rather than written.
+    await #expect(throws: PipelineError.self) {
+        _ = try await tolerantPipeline(
+            FakeProvider(transform: fixTypo), corrections: .strict
+        ).run(ClipboardInput(text: "Kndeliky jsou dobre."))
+    }
+}
+
+private let rewriteEverything: @Sendable ([String]) -> [String] = { _ in
+    ["Úplně jiná věta."]
+}
+
+@Test func pipelineWithVerificationOffWritesWhateverCameBack() async throws {
+    // The switch does what it says: no segment comparison, no retry. This is
+    // the test that documents how much is given up.
+    let result = try await tolerantPipeline(
+        FakeProvider(transform: rewriteEverything), corrections: .proofread,
+        verification: false
+    ).run(ClipboardInput(text: "Kndeliky jsou dobre."))
+    #expect(result.correctedText == "Úplně jiná věta.")
+}
+
+private let fixPreposition: @Sendable ([String]) -> [String] = { items in
+    items.map { $0.replacingOccurrences(of: "v ctvrtek", with: "ve čtvrtek") }
+}
+
+@Test func pipelineKeepsANonBreakingSpaceThroughATolerantFix() async throws {
+    // The regression that would otherwise be silent: the model lengthens the
+    // preposition, the masked NBSP is no longer at index 1, and without the
+    // alignment it would simply vanish.
+    let result = try await tolerantPipeline(
+        FakeProvider(transform: fixPreposition), corrections: .minorFixes,
+        editBudget: EditBudget(percent: 40, minimum: 2)
+    ).run(ClipboardInput(text: "v\u{00A0}ctvrtek"))
+    #expect(result.correctedText == "ve\u{00A0}čtvrtek")
+}
+
+private let capitalize: @Sendable ([String]) -> [String] = { items in
+    items.map { $0.replacingOccurrences(of: "posilam", with: "Posílám") }
+}
+
+@Test func pipelineTolerantModeLetsTheModelFixCapitalization() async throws {
+    // alignCase forces the original case back in strict mode. A tolerant mode
+    // asked the model to fix capitalization, so undoing it would defeat the
+    // request — this is what proves alignCase is skipped.
+    let result = try await tolerantPipeline(
+        FakeProvider(transform: capitalize), corrections: .minorFixes
+    ).run(ClipboardInput(text: "posilam podklady"))
+    #expect(result.correctedText == "Posílám podklady")
+}
+
+private let dropTheSpace: @Sendable ([String]) -> [String] = { items in
+    items.map { $0.replacingOccurrences(of: "v ctvrtek", with: "vctvrtek") }
+}
+
+@Test func pipelineRefusesACorrectionThatSwallowedAMaskedSpace() async throws {
+    // Deleting the space costs one edit on a one-letter word, so the budget
+    // accepts it. The only thing standing between the user and a lost
+    // non-breaking space is the restoration failure being retried and, since
+    // the provider is deterministic, refused.
+    await #expect(throws: PipelineError.self) {
+        _ = try await tolerantPipeline(
+            FakeProvider(transform: dropTheSpace), corrections: .minorFixes
+        ).run(ClipboardInput(text: "v\u{00A0}ctvrtek"))
+    }
+}
