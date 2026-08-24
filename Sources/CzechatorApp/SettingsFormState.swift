@@ -221,6 +221,42 @@ struct SettingsFormState: Equatable {
     /// Whether the profile being edited talks to something that wants a key.
     var editedProfileNeedsKey: Bool { editedProfileFields?.kind == .openaiCompat }
 
+    var editedProfileCorrections: CorrectionMode {
+        get { editedProfileFields?.corrections ?? .strict }
+        set { editedProfileFields?.corrections = newValue }
+    }
+
+    var editedProfileBudget: EditBudget {
+        get { editedProfileFields?.editBudget ?? .builtIn }
+        set { editedProfileFields?.editBudget = newValue }
+    }
+
+    var editedProfileVerification: Bool {
+        get { editedProfileFields?.verification ?? true }
+        set { editedProfileFields?.verification = newValue }
+    }
+
+    /// The budget means nothing in strict mode, which forces it to zero.
+    var budgetIsEditable: Bool { editedProfileCorrections.isTolerant }
+
+    /// `letterCase` only acts in strict mode: a tolerant mode asks the model to
+    /// fix capitalization, so nothing forces the original back.
+    var letterCaseIsEditable: Bool { !editedProfileCorrections.isTolerant }
+
+    /// Seeds a budget that suits the mode, once.
+    ///
+    /// The stored value is always the explicit one — a later edit to any other
+    /// control must not silently reset numbers the user tuned by hand.
+    mutating func selectCorrectionMode(_ mode: CorrectionMode) {
+        guard mode != editedProfileCorrections else { return }
+        editedProfileCorrections = mode
+        switch mode {
+        case .strict: break
+        case .minorFixes: editedProfileBudget = EditBudget(percent: 20, minimum: 1)
+        case .proofread: editedProfileBudget = EditBudget(percent: 35, minimum: 2)
+        }
+    }
+
     /// The Keychain entry this profile's key lives in, if it has one.
     ///
     /// Only a Keychain reference counts: a config may point at an environment

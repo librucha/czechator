@@ -96,6 +96,7 @@ struct SettingsView: View {
                 Picker("Velikost písmen", selection: $form.config.features.letterCase) {
                     ForEach(LetterCasePolicy.allCases, id: \.self) { Text($0.label).tag($0) }
                 }
+                .disabled(!form.letterCaseIsEditable)
                 Text(letterCaseExplanation)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -298,6 +299,48 @@ struct SettingsView: View {
                         .labelsHidden()
                         .frame(width: 70)
                     Text("s").foregroundStyle(.secondary)
+                }
+
+                Picker(
+                    "Režim oprav",
+                    selection: Binding(
+                        get: { form.editedProfileCorrections },
+                        set: { form.selectCorrectionMode($0) })
+                ) {
+                    ForEach(CorrectionMode.allCases, id: \.self) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+
+                if form.editedProfileCorrections == .proofread {
+                    Text("U malých lokálních modelů může model tiše přepsat slova.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if form.budgetIsEditable {
+                    Stepper(
+                        "Rozpočet: \(form.editedProfileBudget.percent) % délky slova",
+                        value: Binding(
+                            get: { form.editedProfileBudget.percent },
+                            set: { form.editedProfileBudget.percent = $0 }),
+                        in: 0...100, step: 5)
+                    Stepper(
+                        "Nejméně editů na slovo: \(form.editedProfileBudget.minimum)",
+                        value: Binding(
+                            get: { form.editedProfileBudget.minimum },
+                            set: { form.editedProfileBudget.minimum = $0 }),
+                        in: 0...5)
+                }
+
+                Toggle("Ověřovat výsledek", isOn: $form.editedProfileVerification)
+                if !form.editedProfileVerification {
+                    Text(
+                        "Bez ověření se do schránky zapíše cokoli, co model vrátí — "
+                            + "včetně ztracených nedělitelných mezer."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 if form.editedProfileNeedsKey {
