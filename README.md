@@ -125,9 +125,10 @@ make install-cli BINDIR=/usr/local/bin # somewhere else (may need sudo)
 
 ```bash
 make build     # both targets
-make test      # 389 tests
+make test      # 423 tests
 make icon      # build/Czechator.icns from img/exports/AppIcon.appiconset
 make app       # build/Czechator.app
+make fixtures  # regenerate the embedded fixtures after editing Fixtures/
 ```
 
 Tests run through `make test`, never bare `swift test`: with only the Command
@@ -174,9 +175,31 @@ Five things are worth turning, roughly in order of effect: the **model**
 while tuning so each line goes on its own), and **what gets sent at all**
 (`segmentation`, inspected with `czechator segments --show-skipped`).
 
-Measure rather than guess: `Tools/quality.py <model>` runs the fixtures in
-`Fixtures/quality/` and reports both how many samples came out exactly right and
-how many passed verification. Those are different numbers and both matter.
+Measure rather than guess: `czechator quality` runs the built-in fixtures and
+reports three numbers per profile and correction mode — how many came out
+exactly right, how many the tool accepted, and how many it refused. They are
+different numbers and all three matter.
+
+```bash
+czechator quality                                   # the active profile, as configured
+czechator quality --profile local --profile claude --corrections all
+czechator quality --format md > docs/quality.md     # a table to commit
+czechator quality --fixtures-dir ./my-samples       # your own text
+```
+
+Two fixture sets ship with the tool and answer different questions. **`clean`**
+is correct Czech missing only its accents, so in a tolerant mode it measures how
+often the model touches text that was already fine. **`typos`** carries
+deliberate mistakes and measures how many the mode actually fixes. A high
+refusal count for `typos` under `strict` is the **correct** result, not a
+failure: the model cannot fix a typo and still pass exact verification.
+
+> **Running this against a paid API costs money.** There is no confirmation
+> prompt and no spending guard — it is a measurement tool and it does what you
+> ask. Two built-in sets across three correction modes is 105 measured runs per
+> profile, each of which is one or more model calls depending on how the
+> samples batch. `--corrections strict` and `--fixtures-dir` with a handful of
+> samples keep a trial cheap.
 
 ## Which model to use
 
