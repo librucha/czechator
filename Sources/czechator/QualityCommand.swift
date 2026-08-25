@@ -44,6 +44,35 @@ struct QualityCommand: AsyncParsableCommand {
         let modes = try parsedModes(environment.config, profiles: profiles)
         let sets = try fixtureSets()
 
+        let report: QualityReport
+        do {
+            report = try await measure(
+                environment: environment, sets: sets, profiles: profiles, modes: modes,
+                policy: policy)
+        } catch let error as QualityError {
+            // Same shape as `fix`: the error goes to stderr with a non-zero
+            // exit code, so an unreachable model reads as a failed run
+            // instead of a table of zeroes that looks like a verdict on it.
+            FileHandle.standardError.write(Data((ErrorMessages.describe(error) + "\n").utf8))
+            throw ExitCode.failure
+        }
+
+        switch format {
+        case "md":
+            print(MarkdownFormatter.render(report), terminator: "")
+        case "terminal":
+            print(
+                TerminalFormatter.render(report, color: colorWanted(), verbose: verbose),
+                terminator: "")
+        default:
+            throw ValidationError("neznámý formát: \(format) (terminal, md)")
+        }
+    }
+
+    private func measure(
+        environment: CLIEnvironment, sets: [QualityFixtureSet], profiles: [String],
+        modes: [CorrectionMode], policy: LetterCasePolicy
+    ) async throws -> QualityReport {
         var forced = false
         var results: [QualitySetResult] = []
 
@@ -86,24 +115,13 @@ struct QualityCommand: AsyncParsableCommand {
                     setName: set.name, sampleCount: set.samples.count, cells: cells))
         }
 
-        let report = QualityReport(
+        return QualityReport(
             version: CzechatorCore.Czechator.version,
             measuredOn: Self.today(),
             letterCase: policy,
             invocation: invocation(profiles: profiles, modes: modes),
             verificationForced: forced,
             sets: results)
-
-        switch format {
-        case "md":
-            print(MarkdownFormatter.render(report), terminator: "")
-        case "terminal":
-            print(
-                TerminalFormatter.render(report, color: colorWanted(), verbose: verbose),
-                terminator: "")
-        default:
-            throw ValidationError("neznámý formát: \(format) (terminal, md)")
-        }
     }
 
     private func parsedPolicy() throws -> LetterCasePolicy {

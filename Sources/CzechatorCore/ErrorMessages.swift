@@ -19,6 +19,8 @@ public enum ErrorMessages {
             return describe(error)
         case let error as ConfigError:
             return describe(error)
+        case let error as QualityError:
+            return describe(error)
         default:
             return String(describing: error)
         }
@@ -81,6 +83,14 @@ public enum ErrorMessages {
         case .invalidEndpoint(let profile, let value):
             return "Profil \(profile) má neplatnou adresu: \(value). "
                 + "Očekává se http:// nebo https:// včetně hostitele."
+        }
+    }
+
+    static func describe(_ error: QualityError) -> String {
+        switch error {
+        case .measurementInvalid(let sample, let reason):
+            return "Měření skončilo u vzorku „\(sample)“. \(describe(reason)) "
+                + "Naměřená čísla by neříkala nic o modelu, tak žádná nevypisuji."
         }
     }
 

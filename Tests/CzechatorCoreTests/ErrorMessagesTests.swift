@@ -50,6 +50,15 @@ import Testing
     #expect(five.contains("5 vadných segmentů)"))
 }
 
+@Test func describesQualityMeasurementInvalidInCzechNotViaTheDefaultBranch() {
+    let message = ErrorMessages.describe(
+        QualityError.measurementInvalid(sample: "01", reason: .providerFailed(.unreachable)))
+    #expect(message.contains("01"))
+    #expect(message.contains("nepodařilo se k němu připojit"))
+    // The string that would appear if this fell through to `default: String(describing:)`.
+    #expect(!message.contains("measurementInvalid"))
+}
+
 @Test func fallsBackToTheUnderlyingDescription() {
     struct Weird: Error {}
     #expect(!ErrorMessages.describe(Weird()).isEmpty)
