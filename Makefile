@@ -29,6 +29,7 @@ fmt:
 
 fixtures:
 	python3 Tools/embed-fixtures.py
+	$(SWIFT_FORMAT) format -i Sources/CzechatorCore/Quality/QualityFixtures+Embedded.swift
 
 clean:
 	rm -rf .build build
