@@ -16,7 +16,7 @@ ifneq ($(TEST_LIBS),)
 TESTFLAGS += -Xlinker -rpath -Xlinker $(TEST_LIBS)
 endif
 
-.PHONY: build test fmt clean
+.PHONY: build test fmt fixtures clean
 
 build:
 	swift build
@@ -26,6 +26,9 @@ test:
 
 fmt:
 	$(SWIFT_FORMAT) format -i -r Sources Tests
+
+fixtures:
+	python3 Tools/embed-fixtures.py
 
 clean:
 	rm -rf .build build
