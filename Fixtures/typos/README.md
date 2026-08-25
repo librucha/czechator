@@ -23,6 +23,13 @@ missing diacritics. Without it, a model that "corrects" everything it sees —
 including text that needed no correction — would score a perfect 11/11 on the
 other samples and look flawless. `12-bez-chyby` is what would catch it.
 
+`09-velke-pismeno` **cannot actually measure capitalization**, and is kept for
+the shape of the sample rather than for its number. In a tolerant mode the
+comparison lowercases both sides, so the sample passes whether or not the model
+capitalized anything; in `strict` with `letterCase: preserve` the pipeline
+forces the original case back, so it is a guaranteed miss. Read its cell as
+noise, not as an answer.
+
 A high **refused** count for this set under `strict` correction is the
 **correct** result, not a failure: `strict` requires an exact match after
 verification, and the model cannot fix a genuine typo and still reproduce the

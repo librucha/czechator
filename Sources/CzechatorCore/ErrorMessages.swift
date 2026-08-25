@@ -21,6 +21,8 @@ public enum ErrorMessages {
             return describe(error)
         case let error as QualityError:
             return describe(error)
+        case let error as QualityFixtureError:
+            return describe(error)
         default:
             return String(describing: error)
         }
@@ -91,6 +93,23 @@ public enum ErrorMessages {
         case .measurementInvalid(let sample, let reason):
             return "Měření skončilo u vzorku „\(sample)“. \(describe(reason)) "
                 + "Naměřená čísla by neříkala nic o modelu, tak žádná nevypisuji."
+        }
+    }
+
+    static func describe(_ error: QualityFixtureError) -> String {
+        switch error {
+        case .missingReference(let sample):
+            return "Vzorek „\(sample)“ nemá vedle sebe soubor .want s referencí. "
+                + "Bez ní není s čím výsledek porovnat."
+        case .missingInput(let sample):
+            return "K referenci „\(sample).want“ chybí vstup .in. "
+                + "Vzorek by se tiše neměřil a zlomek v tabulce by byl menší, "
+                + "aniž by to přiznal."
+        case .unreadableDirectory(let path):
+            return "Adresář se vzorky nejde přečíst: \(path)."
+        case .emptySet(let path):
+            return "Adresář \(path) neobsahuje žádnou dvojici .in/.want. "
+                + "Měření by vypsalo tabulku samých nul, která vypadá jako verdikt."
         }
     }
 

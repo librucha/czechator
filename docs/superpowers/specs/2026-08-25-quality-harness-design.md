@@ -62,7 +62,7 @@ czechator quality [--profile NAME]... [--corrections MODE]...
 Napsat ho k matici, která míchá Ollamu s OpenAI, znamená poslat jedno jméno
 modelu oběma — nástroj to udělá a selže až na druhém volání. Není to hlídané:
 je to zkratka pro srovnání modelů, ne pro srovnání backendů.
-| `--letter-case` | `preserve` | `preserve` \| `segmentStart` \| `model`; působí jen v přísném režimu |
+| `--letter-case` | `features.letterCase` z configu | `preserve` \| `segmentStart` \| `model`; působí jen v přísném režimu |
 | `--format` | `terminal` | `terminal` \| `md` |
 | `--config` | `~/.config/czechator/config.yaml` | jako u `fix` a `segments` |
 | `--color` | `auto` | `auto` \| `always` \| `never`; jen pro `--format terminal` |
@@ -71,6 +71,16 @@ je to zkratka pro srovnání modelů, ne pro srovnání backendů.
 Výchozí hodnota `--corrections` je **vlastní nastavení profilu**, ne `strict`:
 holé `czechator quality` má odpovědět „jak si vede to, co reálně používám".
 `--corrections all` rozvine všechny tři.
+
+Ze stejného důvodu je výchozí hodnota `--letter-case` **`features.letterCase` z
+konfigurace**, ne natvrdo `preserve`. `fix` tu hodnotu čte; kdyby ji měření
+ignorovalo, dostal by uživatel s `letterCase: segmentStart` čísla o sestavě,
+kterou nepoužívá.
+
+**Neplatná volba, neznámý profil ani nerozřešitelný klíč se nesmí objevit až
+uprostřed měření.** Nástroj nemá žádnou pojistku proti útratě (§14), takže se
+profily rozřeší a poskytovatelé postaví **před** prvním voláním modelu —
+`--profile local --profile clode` musí stát nula, ne celé `local`.
 
 Matice je kartézský součin profilů a režimů, spuštěný nad každou sadou vzorků.
 
@@ -100,6 +110,12 @@ je tabulka samých nul, která vypadá jako verdikt o modelu.
 Totéž pro `noText`, `unparsableStructure` a `inputTooLarge`: to jsou vady
 vzorku, ne modelu. Běh skončí chybou, která pojmenuje soubor.
 
+A totéž pro **sadu, ve které se nic nezměří**. Adresář bez jediné dvojice
+`.in`/`.want` je chyba, ne prázdná tabulka: jinak se tabulka samých nul vrátí
+zadními vrátky, tentokrát s návratovým kódem 0. Načtení sady tedy musí být
+uvnitř té části běhu, která chyby překládá do češtiny — jinak se uživateli
+vypíše holý swiftový výčet.
+
 ## 5. Sady vzorků
 
 Dvě vestavěné, obě se pouštějí a reportují **zvlášť**, protože odpovídají na
@@ -115,6 +131,11 @@ jinou otázku:
 Formát obou i uživatelské sady je stejný: `<jméno>.in` a `<jméno>.want` vedle
 sebe. `--fixtures-dir` nahradí obě vestavěné jednou sadou pojmenovanou podle
 adresáře.
+
+Dvojice se kontroluje **v obou směrech**. `.in` bez `.want` je chyba zjevná —
+není s čím porovnávat. `.want` bez `.in` je zákeřnější: načítání jde po `.in`
+souborech, takže by osiřelá reference byla neviditelná a sada by se tiše
+zmenšila z 12 na 11 — i se zlomkem, který se publikuje.
 
 ### 5.1 Nová sada `typos`
 
@@ -287,8 +308,13 @@ Tabulka nese **jméno profilu a model, nikdy endpoint**. Kdo měří proti
 firemní bráně na `https://ai.interni.firma.cz/v1` a výsledek vloží do veřejného
 README, vysypal by interní adresu. V terminálovém formátu endpoint být může.
 
-Ze stejného důvodu se `invocation` skládá z rozparsovaných voleb a `--config`
-se z něj **vypouští** — cesta ke konfiguraci nese uživatelské jméno.
+Ze stejného důvodu se `invocation` skládá z rozparsovaných voleb a **žádná
+volba nesoucí cestu se do něj nedostane celá**. `--config` je ten zjevný případ
+— cesta ke konfiguraci nese uživatelské jméno — ale `--fixtures-dir
+~/Documents/moje-vzorky` nese přesně totéž. `--config` se vypouští úplně,
+`--fixtures-dir` se zkracuje na poslední složku cesty; sada se podle ní jmenuje
+v nadpisu tabulky nad tím, takže se nic nesrozumitelného neztratí. Každá další
+volba s cestou musí projít stejným sítem.
 
 ## 10. Terminálový formát
 
@@ -317,6 +343,14 @@ Bez volání modelu:
 - rozpad voleb na buňky matice: `--corrections all` dá tři, dva profily krát
   dva režimy dají čtyři
 - rozpočet je v buňce `nil` právě v přísném režimu
+- `invocation` neobsahuje `--config` **ani absolutní cestu** (§9.1)
+- osiřelá `.want` bez `.in` a adresář bez jediné dvojice jsou chyby (§4.1, §5)
+
+Cíl `czechator` **nemá testovací target** a nedostane ho: proto ty dvě rozhodnutí
+o matici — sestavení buněk a `invocation` — nesmějí bydlet v příkazu. Žijí v
+`CzechatorCore/Quality/QualityMatrix.swift` jako čisté funkce nad hodnotami a
+testují se tam. `QualityCommand` zůstává tenkou slupkou: I/O, sestavení
+pipeline a smyčka.
 - vestavěné vzorky se shodují s `Fixtures/` na disku (§5.2)
 
 S falešným poskytovatelem (`FakeProvider` z `PipelineTests` už existuje):
@@ -333,6 +367,8 @@ Nové:
 - `Sources/CzechatorCore/Quality/QualityComparison.swift`
 - `Sources/CzechatorCore/Quality/QualityReport.swift` (hodnoty ze §8)
 - `Sources/CzechatorCore/Quality/QualityRunner.swift` (běh nad sadou)
+- `Sources/CzechatorCore/Quality/QualityMatrix.swift` (buňky matice a
+  `invocation` jako čisté funkce, §12)
 - `Sources/CzechatorCore/Quality/MarkdownFormatter.swift`
 - `Sources/CzechatorCore/Quality/TerminalFormatter.swift`
 - `Sources/CzechatorCore/Quality/QualityFixtures.swift` (generovaný)
@@ -344,6 +380,8 @@ Měněné:
 
 - `Sources/czechator/Czechator.swift` — `QualityCommand` do `subcommands`
 - `Sources/czechator/CLIEnvironment.swift` — `makeProvider(for:)`
+- `Sources/CzechatorCore/ErrorMessages.swift` — `QualityError` a
+  `QualityFixtureError` česky, ne přes větev `default`
 - `Makefile` — cíl `fixtures`
 - `README.md` — nová sekce, odstranění zmínek o `Tools/quality.py`
 

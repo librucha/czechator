@@ -125,7 +125,7 @@ make install-cli BINDIR=/usr/local/bin # somewhere else (may need sudo)
 
 ```bash
 make build     # both targets
-make test      # 423 tests
+make test      # 431 tests
 make icon      # build/Czechator.icns from img/exports/AppIcon.appiconset
 make app       # build/Czechator.app
 make fixtures  # regenerate the embedded fixtures after editing Fixtures/
@@ -179,6 +179,12 @@ Measure rather than guess: `czechator quality` runs the built-in fixtures and
 reports three numbers per profile and correction mode — how many came out
 exactly right, how many the tool accepted, and how many it refused. They are
 different numbers and all three matter.
+
+With no `--corrections` and no `--letter-case` it measures each profile in the
+correction mode and under the letter-case policy your configuration actually
+uses, so bare `czechator quality` answers "how is what I run doing" rather than
+"how is the default doing". `verification` is the one setting it does not take
+from the profile — see [Known limitations](#known-limitations).
 
 ```bash
 czechator quality                                   # the active profile, as configured
@@ -493,6 +499,29 @@ rebuild.
   verification. Turning verification off turns that off with it. Entities and
   JSON escapes are still protected — those would corrupt the document rather
   than merely lose a character, so they are refused in every mode.
+- **`czechator quality` measures again every time; there is no cache.** The
+  same profile on the same model is re-asked from scratch on every run, so
+  against a paid API a repeated measurement is repeated spend. There is no
+  confirmation prompt and no spending guard anywhere in the command — an
+  unknown profile, a bad `--format` or an unreadable fixtures directory is
+  refused before the first call, but a sweep you meant to run costs what it
+  costs.
+- **`--model` is sent to every measured profile.** It is a shortcut for
+  comparing models, not backends. A matrix that mixes an Ollama profile with an
+  OpenAI-compatible one gets one model name pushed into both, and the run fails
+  on the second call.
+- **Measured comparison is exact equality against the reference.** A legitimate
+  different correction of the same typo counts as a miss, and so does a
+  different but equally correct comma placement. The number is a floor, not a
+  verdict.
+- **Measurement forces `verification: true`,** even against a profile that has
+  it turned off — without it the *accepted* and *refused* columns would be
+  constant. The provenance line says `ověřování vynuceno` when that happened,
+  but the profile's own numbers are not what you measured.
+- **In a tolerant mode the comparison ignores letter case,** because
+  `letterCase` does not act there. A sample that exists to measure a missing
+  capital therefore cannot be measured — see `Fixtures/typos/README.md` on
+  `09-velke-pismeno`.
 - **RTF-only clipboards** are reported as unsupported rather than mangled.
 - **Structure that does not parse is refused, not guessed.** JSON with comments
   or a trailing comma, NDJSON, a truncated fragment, and config formats that are

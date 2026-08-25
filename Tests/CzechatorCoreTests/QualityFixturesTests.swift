@@ -42,15 +42,48 @@ private func onDisk(_ directory: String) throws -> QualityFixtureSet {
     #expect(set.samples.map(\.name) == set.samples.map(\.name).sorted())
 }
 
-@Test func qualityFixturesLoadRefusesAnInputWithNoReference() throws {
+/// A directory that exists only for the duration of one test, with the files
+/// it is given written into it.
+private func temporaryFixtures(
+    _ files: [String: String], _ body: (URL) throws -> Void
+) throws {
     let temporary = URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("czechator-fixtures-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: temporary) }
-    try "ahoj".write(
-        to: temporary.appendingPathComponent("lonely.in"), atomically: true, encoding: .utf8)
+    for (name, contents) in files {
+        try contents.write(
+            to: temporary.appendingPathComponent(name), atomically: true, encoding: .utf8)
+    }
+    try body(temporary)
+}
 
-    #expect(throws: QualityFixtureError.self) {
-        _ = try QualityFixtures.load(directory: temporary)
+@Test func qualityFixturesLoadRefusesAnInputWithNoReference() throws {
+    try temporaryFixtures(["lonely.in": "ahoj"]) { directory in
+        #expect(throws: QualityFixtureError.missingReference(sample: "lonely")) {
+            _ = try QualityFixtures.load(directory: directory)
+        }
+    }
+}
+
+@Test func qualityFixturesLoadRefusesAReferenceWithNoInput() throws {
+    // A renamed `.in` leaves its `.want` behind. Skipping it would shrink the
+    // denominator of a published fraction without admitting anything.
+    try temporaryFixtures(
+        ["01-ok.in": "ahoj", "01-ok.want": "ahoj", "07-carka.want": "ahoj, světe"]
+    ) { directory in
+        #expect(throws: QualityFixtureError.missingInput(sample: "07-carka")) {
+            _ = try QualityFixtures.load(directory: directory)
+        }
+    }
+}
+
+@Test func qualityFixturesLoadRefusesADirectoryWithNoPair() throws {
+    // Otherwise the run prints a table of zeroes and exits successfully — the
+    // one outcome the command exists to prevent.
+    try temporaryFixtures(["README.md": "# nic tu není"]) { directory in
+        #expect(throws: QualityFixtureError.emptySet(path: directory.path)) {
+            _ = try QualityFixtures.load(directory: directory)
+        }
     }
 }

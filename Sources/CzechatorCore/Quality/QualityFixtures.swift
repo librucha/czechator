@@ -24,7 +24,14 @@ public struct QualityFixtureSet: Sendable, Equatable {
 
 public enum QualityFixtureError: Error, Equatable {
     case missingReference(sample: String)
+    /// A `.want` with no `.in` beside it. Silently skipping it would shrink the
+    /// denominator of a published fraction without admitting anything.
+    case missingInput(sample: String)
     case unreadableDirectory(path: String)
+    /// A directory with no `.in`/`.want` pair at all. Measuring it would print
+    /// a table of zeroes and exit successfully — the one outcome this whole
+    /// command exists to prevent.
+    case emptySet(path: String)
 }
 
 public enum QualityFixtures {
@@ -38,6 +45,18 @@ public enum QualityFixtures {
                 at: directory, includingPropertiesForKeys: nil)
         } catch {
             throw QualityFixtureError.unreadableDirectory(path: directory.path)
+        }
+
+        // Both directions, because the loop below only walks `.in` files: a
+        // renamed input leaves its `.want` behind, and without this the set
+        // would quietly measure 11 of 12 and publish the smaller fraction.
+        func stems(_ pathExtension: String) -> Set<String> {
+            Set(
+                entries.filter { $0.pathExtension == pathExtension }
+                    .map { $0.deletingPathExtension().lastPathComponent })
+        }
+        if let orphan = stems("want").subtracting(stems("in")).sorted().first {
+            throw QualityFixtureError.missingInput(sample: orphan)
         }
 
         var samples: [QualitySample] = []
@@ -56,6 +75,9 @@ public enum QualityFixtures {
                     name: name,
                     input: String(decoding: inputData, as: UTF8.self),
                     want: String(decoding: wantData, as: UTF8.self)))
+        }
+        guard !samples.isEmpty else {
+            throw QualityFixtureError.emptySet(path: directory.path)
         }
         return QualityFixtureSet(
             name: directory.lastPathComponent, samples: samples)

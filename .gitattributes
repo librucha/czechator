@@ -1,5 +1,7 @@
 * text=auto eol=lf
 
 # Fixtures are compared byte for byte; normalizing line endings would destroy
-# the CRLF sample, which exists precisely to prove CRLF survives.
-Fixtures/quality/** -text
+# the CRLF sample, which exists precisely to prove CRLF survives. Every set,
+# not just quality/: the first CRLF sample added to another one would fail the
+# drift test in a way that is miserable to diagnose.
+Fixtures/** -text

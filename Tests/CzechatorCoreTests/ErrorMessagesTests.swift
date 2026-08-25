@@ -59,6 +59,25 @@ import Testing
     #expect(!message.contains("measurementInvalid"))
 }
 
+@Test func describesEveryQualityFixtureErrorInCzechNotViaTheDefaultBranch() {
+    let cases: [QualityFixtureError] = [
+        .missingReference(sample: "07-carka"),
+        .missingInput(sample: "07-carka"),
+        .unreadableDirectory(path: "/neexistuje"),
+        .emptySet(path: "/prazdno"),
+    ]
+    for error in cases {
+        let message = ErrorMessages.describe(error)
+        // The strings that would appear if this fell through to
+        // `default: String(describing:)`.
+        #expect(!message.contains("("))
+        #expect(message.hasSuffix("."))
+    }
+    #expect(
+        ErrorMessages.describe(QualityFixtureError.unreadableDirectory(path: "/neexistuje"))
+            == "Adresář se vzorky nejde přečíst: /neexistuje.")
+}
+
 @Test func fallsBackToTheUnderlyingDescription() {
     struct Weird: Error {}
     #expect(!ErrorMessages.describe(Weird()).isEmpty)

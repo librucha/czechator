@@ -22,8 +22,10 @@ struct QualityCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Přepíše model u všech měřených profilů.")
     var model: String?
 
-    @Option(name: .long, help: "preserve, segmentStart nebo model. Působí jen v přísném režimu.")
-    var letterCase: String = "preserve"
+    @Option(
+        name: .long,
+        help: "preserve, segmentStart nebo model. Výchozí z konfigurace, jen v přísném režimu.")
+    var letterCase: String?
 
     @Option(name: .long, help: "Formát výstupu: terminal nebo md.")
     var format: String = "terminal"
@@ -38,26 +40,37 @@ struct QualityCommand: AsyncParsableCommand {
     var verbose = false
 
     func run() async throws {
-        // Parsed before the sweep, like `--letter-case`: a typo in --format
-        // must not be discovered only after paying for the whole measurement.
+        // Everything that can fail for free is decided here, before the sweep.
+        // A typo in --format, an unknown profile or a key that will not resolve
+        // must not be discovered only after paying for half the measurement —
+        // this tool has no spending guard at all.
         let outputFormat = try parsedFormat()
         let environment = try CLIEnvironment.load(configPath: config, profileName: nil)
-        let policy = try parsedPolicy()
-        let profiles = profile.isEmpty ? [environment.config.activeProfile] : profile
-        let modes = try parsedModes(environment.config, profiles: profiles)
-        let sets = try fixtureSets()
+        let policy = try parsedPolicy(environment.config)
+        let names = profile.isEmpty ? [environment.config.activeProfile] : profile
+        let modes = try parsedModes(environment.config, profiles: names)
+        let profiles = try resolvedProfiles(environment.config, names: names)
 
         let report: QualityReport
         do {
+            // Built once per profile, not once per cell: a fresh
+            // URLSessionHTTPClient per cell was pure waste, and a Keychain
+            // entry that cannot be read has to say so before the first call.
+            var providers: [String: any LLMProvider] = [:]
+            for entry in profiles {
+                providers[entry.name] = try environment.makeProvider(for: entry.profile)
+            }
+            let sets = try fixtureSets()
+
             report = try await measure(
                 environment: environment, sets: sets, profiles: profiles, modes: modes,
-                policy: policy)
+                providers: providers, policy: policy)
         } catch let error as QualityError {
-            // Same shape as `fix`: the error goes to stderr with a non-zero
-            // exit code, so an unreachable model reads as a failed run
-            // instead of a table of zeroes that looks like a verdict on it.
-            FileHandle.standardError.write(Data((ErrorMessages.describe(error) + "\n").utf8))
-            throw ExitCode.failure
+            throw reported(error)
+        } catch let error as QualityFixtureError {
+            throw reported(error)
+        } catch let error as SecretError {
+            throw reported(error)
         }
 
         switch outputFormat {
@@ -68,6 +81,15 @@ struct QualityCommand: AsyncParsableCommand {
                 TerminalFormatter.render(report, color: colorWanted(), verbose: verbose),
                 terminator: "")
         }
+    }
+
+    /// Same shape as `fix`: the message goes to stderr in Czech with a non-zero
+    /// exit code, so an unreachable model or an unreadable fixture directory
+    /// reads as a failed run instead of a table of zeroes that looks like a
+    /// verdict — and never as a raw Swift enum.
+    private func reported(_ error: any Error) -> ExitCode {
+        FileHandle.standardError.write(Data((ErrorMessages.describe(error) + "\n").utf8))
+        return .failure
     }
 
     private enum OutputFormat {
@@ -84,46 +106,56 @@ struct QualityCommand: AsyncParsableCommand {
         }
     }
 
+    /// Resolves every named profile up front, so `--profile local --profile
+    /// clode` costs nothing instead of the whole of `local`.
+    private func resolvedProfiles(_ config: Config, names: [String]) throws -> [QualityProfile] {
+        try names.map { name in
+            guard var profile = config.profiles[name] else {
+                throw ValidationError("neznámý profil: \(name)")
+            }
+            if let model { profile.model = model }
+            return QualityProfile(name: name, profile: profile)
+        }
+    }
+
     private func measure(
-        environment: CLIEnvironment, sets: [QualityFixtureSet], profiles: [String],
-        modes: [CorrectionMode], policy: LetterCasePolicy
+        environment: CLIEnvironment, sets: [QualityFixtureSet], profiles: [QualityProfile],
+        modes: [CorrectionMode], providers: [String: any LLMProvider], policy: LetterCasePolicy
     ) async throws -> QualityReport {
-        var forced = false
+        // Read before the sweep: `Pipeline` is told the mode and the
+        // verification flag directly, so the profile itself is never mutated
+        // for them.
+        let forced = profiles.contains { !$0.profile.verification }
+        let matrix = QualityMatrix.cells(profiles: profiles, modes: modes)
         var results: [QualitySetResult] = []
 
         for set in sets {
             var cells: [QualityCell] = []
-            for name in profiles {
-                guard var profile = environment.config.profiles[name] else {
-                    throw ValidationError("neznámý profil: \(name)")
+            for cell in matrix {
+                guard let provider = providers[cell.profileName] else {
+                    // Unreachable: both are keyed by the same resolved names.
+                    throw ValidationError("neznámý profil: \(cell.profileName)")
                 }
-                if let model { profile.model = model }
-                // Read before the sweep: `Pipeline` is told the mode and the
-                // verification flag directly, so the profile itself is never
-                // mutated for them.
-                if !profile.verification { forced = true }
-                for mode in modes {
-                    let pipeline = Pipeline(
-                        registry: environment.registry,
-                        provider: try environment.makeProvider(for: profile),
-                        limits: environment.config.limits,
-                        promptOverride: environment.config.prompt.override,
-                        letterCase: policy,
-                        corrections: mode,
-                        editBudget: profile.editBudget,
-                        verification: true)
+                let pipeline = Pipeline(
+                    registry: environment.registry,
+                    provider: provider,
+                    limits: environment.config.limits,
+                    promptOverride: environment.config.prompt.override,
+                    letterCase: policy,
+                    corrections: cell.corrections,
+                    editBudget: cell.profile.editBudget,
+                    verification: true)
 
-                    let outcome = try await QualityRunner.run(
-                        set: set, pipeline: pipeline, mode: mode, policy: policy)
+                let outcome = try await QualityRunner.run(
+                    set: set, pipeline: pipeline, mode: cell.corrections, policy: policy)
 
-                    cells.append(
-                        QualityCell(
-                            profileName: name, model: profile.model, corrections: mode,
-                            budget: mode.isTolerant ? profile.editBudget : nil,
-                            exact: outcome.exact, accepted: outcome.accepted,
-                            refused: outcome.refused, total: outcome.total,
-                            misses: outcome.misses, passed: outcome.passed))
-                }
+                cells.append(
+                    QualityCell(
+                        profileName: cell.profileName, model: cell.model,
+                        corrections: cell.corrections, budget: cell.budget,
+                        exact: outcome.exact, accepted: outcome.accepted,
+                        refused: outcome.refused, total: outcome.total,
+                        misses: outcome.misses, passed: outcome.passed))
             }
             results.append(
                 QualitySetResult(
@@ -134,12 +166,18 @@ struct QualityCommand: AsyncParsableCommand {
             version: CzechatorCore.Czechator.version,
             measuredOn: Self.today(),
             letterCase: policy,
-            invocation: invocation(profiles: profiles, modes: modes),
+            invocation: QualityMatrix.invocation(
+                profiles: profiles.map(\.name), modes: modes, model: model,
+                fixturesDir: fixturesDir, letterCase: policy),
             verificationForced: forced,
             sets: results)
     }
 
-    private func parsedPolicy() throws -> LetterCasePolicy {
+    /// Defaults to the configured policy, the way `fix` reads it: measuring a
+    /// hardcoded `preserve` would report numbers about a setup the user does
+    /// not run.
+    private func parsedPolicy(_ config: Config) throws -> LetterCasePolicy {
+        guard let letterCase else { return config.features.letterCase }
         guard let policy = LetterCasePolicy(rawValue: letterCase) else {
             throw ValidationError(
                 "neznámá hodnota --letter-case: \(letterCase) (preserve, segmentStart, model)")
@@ -180,19 +218,6 @@ struct QualityCommand: AsyncParsableCommand {
                 && ProcessInfo.processInfo
                     .environment["NO_COLOR"] == nil
         }
-    }
-
-    /// Rebuilt from the parsed options rather than from CommandLine.arguments:
-    /// `--config` carries the user's home directory and must not reach a table
-    /// that gets committed.
-    private func invocation(profiles: [String], modes: [CorrectionMode]) -> String {
-        var parts = ["czechator quality"]
-        for name in profiles { parts.append("--profile \(name)") }
-        for mode in modes { parts.append("--corrections \(mode.rawValue)") }
-        if let model { parts.append("--model \(model)") }
-        if let fixturesDir { parts.append("--fixtures-dir \(fixturesDir)") }
-        if letterCase != "preserve" { parts.append("--letter-case \(letterCase)") }
-        return parts.joined(separator: " ")
     }
 
     private static func today() -> String {
