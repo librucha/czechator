@@ -11,7 +11,7 @@ corrected version back on your clipboard.
 The point of the tool is what it does **not** touch. If the clipboard holds
 JSON, XML or HTML, only the text nodes are corrected — keys, tags, attributes,
 indentation and formatting come back byte-for-byte identical. And, with
-verification on, nothing is ever written back unless it passes it.
+verification on, nothing is written back at all unless it passes.
 
 ```
 $ echo 'Prilis zlutoucky kun upel dabelske ody.' | czechator fix -
@@ -46,9 +46,8 @@ weaker guarantee — it bounds how much was rewritten, it does not prove that
 nothing was. Every shipped profile stays strict; relaxing it is a deliberate
 choice per profile.
 
-**With verification on, Czechator cannot do the job safely without doing
-nothing at all and telling you why** — your clipboard is never left worse than
-it was.
+**With verification on, when Czechator cannot do the job safely it does nothing
+at all and tells you why** — your clipboard is never left worse than it was.
 
 A profile can also switch verification off entirely. That is a different thing
 from relaxing the budget: it removes the check altogether, so whatever the
@@ -64,7 +63,8 @@ is a deliberate choice per profile, for a model you already trust completely.
 - **Structure-aware.** Plain text, Markdown, JSON, XML and HTML. In structured
   formats only text nodes are corrected; the document is reassembled from the
   original bytes around them.
-- **Verification before every write, when it's on.** Nothing unverified reaches the clipboard.
+- **Verification before every write.** With it on, nothing unverified reaches
+  the clipboard. A profile can switch it off, deliberately and per profile.
 - **Local first.** Runs against [Ollama](https://ollama.com) on your machine, so
   the clipboard never leaves it. Any OpenAI-compatible API works too.
 - **Rich clipboard preserved.** An HTML clipboard is written back as both HTML
@@ -80,8 +80,10 @@ is a deliberate choice per profile, for a model you already trust completely.
 
 ### Not in scope
 
-Czechator does not fix typos, grammar or punctuation, does not translate, and
-does not reformat. It adds accents and nothing else.
+Czechator never translates, never reformats, never reorders and never swaps a
+word for a synonym — in any mode. By default it adds accents and nothing else;
+a profile can additionally allow typos, punctuation and capitalization to be
+fixed, bounded per word. See [Correction modes](#correction-modes).
 
 ## Requirements
 
@@ -123,7 +125,7 @@ make install-cli BINDIR=/usr/local/bin # somewhere else (may need sudo)
 
 ```bash
 make build     # both targets
-make test      # 196 tests
+make test      # 389 tests
 make icon      # build/Czechator.icns from img/exports/AppIcon.appiconset
 make app       # build/Czechator.app
 ```
@@ -139,20 +141,38 @@ stderr, so a refused run shows the actual answer instead of just a count:
 
 ```
 $ echo 'Prilis zlutoucky kun.' | czechator fix - --debug
+── režim ──
+  opravy: Přísný
+  ověřování: zapnuto
+
 ── dávka (1 položek) ──
   1. posláno: Prilis zlutoucky kun.
      vráceno: Příliš žluťoučký kůň.
      → jen diakritika, v pořádku
 ```
 
-On a rejection it also points at the first character where the folded forms
-diverge — the change the model made beyond adding accents.
+The header says what the run was judged by, which is the first thing to check
+when a correction is refused you expected to pass — or accepted you expected to
+be refused.
 
-Four things are worth turning, roughly in order of effect: the **model**
-(`profiles.<name>.model`), the **prompt** (`prompt.override`), the **batch size**
-(`limits.maxBatchChars` — set it low while tuning so each line goes on its own),
-and **what gets sent at all** (`segmentation`, inspected with `czechator
-segments --show-skipped`).
+On a rejection it also points at the first character where the folded forms
+diverge. In a tolerant mode it additionally names the word that went over its
+allowance and by how much:
+
+```
+── ZAMÍTNUTO ──
+  originál: schuzka se kona v utery
+  model:    schůzka se koná ve středu
+  rozdíl:   na pozici 17: „v utery" vs „ve stredu"
+  přes rozpočet: „utery" — 4 editů, povoleno 1
+```
+
+Five things are worth turning, roughly in order of effect: the **model**
+(`profiles.<name>.model`), the **correction mode** (`profiles.<name>.corrections`
+— see [Correction modes](#correction-modes)), the **prompt**
+(`prompt.override`), the **batch size** (`limits.maxBatchChars` — set it low
+while tuning so each line goes on its own), and **what gets sent at all**
+(`segmentation`, inspected with `czechator segments --show-skipped`).
 
 Measure rather than guess: `Tools/quality.py <model>` runs the fixtures in
 `Fixtures/quality/` and reports both how many samples came out exactly right and
@@ -188,6 +208,11 @@ profiles:
     model: qwen3:4b-instruct
     temperature: 0
     timeoutSeconds: 30
+    corrections: strict        # strict | minor-fixes | proofread
+    editBudget:
+      percent: 20              # of each word's length
+      minimum: 1               # floor, in edits
+    verification: true
   openai:
     kind: openai-compat
     endpoint: https://api.openai.com/v1
@@ -195,6 +220,11 @@ profiles:
     temperature: 0
     timeoutSeconds: 30
     apiKey: { source: keychain, account: czechator-openai }
+    corrections: strict
+    editBudget:
+      percent: 20
+      minimum: 1
+    verification: true
 
 hotkeys:
   - shortcut: cmd+ctrl+d
@@ -231,10 +261,56 @@ segmentation:
       - '`[^`]+`'
 
 features:
+  preview: false
   history: true
   historySize: 20
   letterCase: preserve   # preserve | segmentStart | model
 ```
+
+### Correction modes
+
+Three settings, one per profile, each doing one thing. They are per profile
+because trustworthiness is a property of the model, not of the tool: a local 4B
+model and Claude do not deserve the same latitude.
+
+| setting | what it controls |
+|---|---|
+| `corrections` | what the model is **asked** for — it picks the prompt |
+| `editBudget` | how much is **tolerated** |
+| `verification` | whether anything is **checked** |
+
+`corrections` and `verification` are not two steps of one scale. The first
+chooses the prompt, the second decides whether the result is inspected at all.
+
+| `corrections` | in the window | the model may also… | checked by |
+|---|---|---|---|
+| `strict` (default) | Přísný | nothing — accents only | `fold(output) == fold(input)`, exact |
+| `minor-fixes` | Drobné opravy | fix typos, spacing, punctuation, capitalization | per-word edit budget |
+| `proofread` | Korektura | additionally fix spelling and grammatical agreement | per-word edit budget |
+
+The budget is per **word**, not per segment: a segment-wide allowance grows with
+length, so a 300-character paragraph would be permitted enough edits to rewrite
+a whole sentence. Each word gets `max(minimum, length * percent / 100)` edits,
+counted as Damerau-Levenshtein — two swapped letters cost 1, because that is the
+commonest typo there is and scoring it 2 would put it out of reach.
+
+The defaults are tight rather than generous. At 20 % with a floor of 1,
+`kndeliky` → `knedlíky` and `bil` → `byl` each land exactly on the allowance.
+
+Switching mode in the settings window pre-fills `(20 %, 1)` for *Drobné opravy*
+and `(35 %, 2)` for *Korektura*, once. Tuned numbers are never reset by touching
+another control.
+
+**What you give up.** In a tolerant mode the tool can no longer prove that only
+diacritics changed — it can only bound how much any single word changed. On a
+short word that bound is loose: at `(35 %, 2)` a three-letter word may change
+two of its three characters, so `pes` → `kos` passes. There is also no cap on
+how many words in a segment may change, so a long paragraph can be reworded a
+word at a time within budget. Both are the reason every shipped profile stays
+`strict`, and the reason *Korektura* on a small local model is a bad idea.
+
+Segments longer than 2000 characters are compared strictly whatever the mode
+says: the alignment is O(n·m) and not worth running on a paragraph that size.
 
 ### Letter case
 
@@ -252,6 +328,11 @@ gets is a choice:
 A segment is a line of plain text, a JSON string value or one HTML text node —
 often a sentence, but not always one, which is why `segmentStart` is a rule about
 segments rather than about sentences.
+
+**`letterCase` only acts in `strict` mode.** A tolerant mode asks the model to
+fix capitalization, so forcing the original case back would undo the very thing
+that was requested. The settings window greys the control out when the active
+profile is tolerant.
 
 ### API keys
 
@@ -379,6 +460,16 @@ rebuild.
   diacritics changed; it cannot prove the diacritics are right. `bít` and `byt`
   fold identically, so picking the wrong one passes. That is a model-quality
   problem, and the reason the model matters.
+- **A tolerant mode bounds the damage, it does not prevent it.** The per-word
+  budget proves no word changed by more than its allowance — not that no word
+  should have changed. Nothing caps how many words in one segment may each spend
+  their allowance, so a long paragraph can be reworded a word at a time and pass.
+- **With `verification: false`, a swallowed non-breaking space is lost
+  silently.** Non-breaking spaces are hidden from the model and restored by
+  position afterwards; the check that catches a failed restoration is part of
+  verification. Turning verification off turns that off with it. Entities and
+  JSON escapes are still protected — those would corrupt the document rather
+  than merely lose a character, so they are refused in every mode.
 - **RTF-only clipboards** are reported as unsupported rather than mangled.
 - **Structure that does not parse is refused, not guessed.** JSON with comments
   or a trailing comma, NDJSON, a truncated fragment, and config formats that are
@@ -428,6 +519,10 @@ places, notably how JSON escapes and HTML entities are tracked (by grapheme
 position rather than by flag) and everything around whitespace and letter case,
 none of which the design anticipated.
 
+[`docs/superpowers/specs/2026-08-24-tolerance-oprav-design.md`](docs/superpowers/specs/2026-08-24-tolerance-oprav-design.md)
+supersedes its section on verification: it is the design note for the per-word
+budget, and it records what the relaxation costs as well as what it buys.
+
 ### Testing
 
 `make test`, never `swift test` — the flags that let swift-testing run under
@@ -440,10 +535,18 @@ rules for choosing and replacing a trigger are tested without registering a
 global hotkey or asking macOS for anything.
 
 The settings window's rules — whether saving is allowed, whether a change
-should ask for the Accessibility permission, what the warning says — live in
-`SettingsFormState` rather than inside the view, so they are tested as ordinary
-logic. Both bugs that once escaped review are pinned by a test that fails if
-the bug is reintroduced.
+should ask for the Accessibility permission, what the warning says, which
+controls are live — live in `SettingsFormState` rather than inside the view, so
+they are tested as ordinary logic. Every bug that has escaped review is pinned
+by a test that fails if it is reintroduced.
+
+One of those is worth naming, because no ordinary test could have caught it:
+`protectedIndices` was declared only in a protocol extension, so through an
+`any FormatHandler` it dispatched statically to the empty default and the whole
+protected-index branch was dead code. The handler tests passed because they call
+concrete types, where the override dispatches normally. It surfaced only because
+a mutation check stayed green when it should have gone red, and it is now pinned
+by a test that goes through the existential.
 
 What is still not covered is SwiftUI itself: that the right controls appear in
 the right sections is verified by review, not by tests. ViewInspector would
