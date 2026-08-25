@@ -38,6 +38,9 @@ struct QualityCommand: AsyncParsableCommand {
     var verbose = false
 
     func run() async throws {
+        // Parsed before the sweep, like `--letter-case`: a typo in --format
+        // must not be discovered only after paying for the whole measurement.
+        let outputFormat = try parsedFormat()
         let environment = try CLIEnvironment.load(configPath: config, profileName: nil)
         let policy = try parsedPolicy()
         let profiles = profile.isEmpty ? [environment.config.activeProfile] : profile
@@ -57,13 +60,25 @@ struct QualityCommand: AsyncParsableCommand {
             throw ExitCode.failure
         }
 
-        switch format {
-        case "md":
+        switch outputFormat {
+        case .markdown:
             print(MarkdownFormatter.render(report), terminator: "")
-        case "terminal":
+        case .terminal:
             print(
                 TerminalFormatter.render(report, color: colorWanted(), verbose: verbose),
                 terminator: "")
+        }
+    }
+
+    private enum OutputFormat {
+        case terminal
+        case markdown
+    }
+
+    private func parsedFormat() throws -> OutputFormat {
+        switch format {
+        case "md": return .markdown
+        case "terminal": return .terminal
         default:
             throw ValidationError("neznámý formát: \(format) (terminal, md)")
         }
