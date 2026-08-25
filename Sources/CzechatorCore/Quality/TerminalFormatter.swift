@@ -19,7 +19,10 @@ public enum TerminalFormatter {
     static let reset = "\u{001B}[0m"
 
     static func bar(_ ratio: Double, width: Int = 12) -> String {
-        let filled = Int((ratio * Double(width)).rounded())
+        // Clamp first: String(repeating:count:) traps on a negative count, and a
+        // rendering function must degrade to a wrong bar, never abort the run.
+        let clamped = min(max(ratio, 0), 1)
+        let filled = Int((clamped * Double(width)).rounded())
         return String(repeating: "█", count: filled)
             + String(repeating: "░", count: width - filled)
     }

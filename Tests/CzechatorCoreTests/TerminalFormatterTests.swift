@@ -52,3 +52,22 @@ private func report(exact: Int, accepted: Int, total: Int) -> QualityReport {
     let out = TerminalFormatter.render(report(exact: 1, accepted: 1, total: 1), color: false)
     #expect(out.contains("letterCase: preserve"))
 }
+
+@Test func terminalBarSurvivesAnOutOfRangeRatio() {
+    // String(repeating:count:) traps on a negative count, so an upstream bug
+    // that lets a ratio leave 0...1 must draw a wrong bar, not kill the run.
+    #expect(TerminalFormatter.bar(-0.5) == String(repeating: "░", count: 12))
+    #expect(TerminalFormatter.bar(1.5) == String(repeating: "█", count: 12))
+}
+
+@Test func terminalHeatPromotesAValueSittingExactlyOnAThreshold() {
+    // The scan is `ratio < threshold`, so a value landing exactly on a boundary
+    // gets the NEXT band up, not that one. Ported verbatim from the Python
+    // harness this replaces (Tools/quality.py:64-66) — pinned here so nobody
+    // flips the convention by accident.
+    #expect(TerminalFormatter.heat(0.50, "x", color: true).hasPrefix("\u{001B}[38;5;208m"))
+    #expect(TerminalFormatter.heat(0.95, "x", color: true).hasPrefix("\u{001B}[92m"))
+    // And just below each boundary the lower band still wins.
+    #expect(TerminalFormatter.heat(0.49, "x", color: true).hasPrefix("\u{001B}[31m"))
+    #expect(TerminalFormatter.heat(0.94, "x", color: true).hasPrefix("\u{001B}[32m"))
+}
