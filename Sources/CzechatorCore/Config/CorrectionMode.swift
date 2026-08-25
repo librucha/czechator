@@ -24,3 +24,24 @@ public enum CorrectionMode: String, Sendable, Codable, Equatable, CaseIterable {
 
     public var isTolerant: Bool { self != .strict }
 }
+
+extension CorrectionMode {
+    /// Parses `--corrections` values. `all` expands to every case in
+    /// declaration order; anything unknown yields nil so the caller can name
+    /// the bad token instead of silently measuring less than was asked for.
+    public static func expand(_ raw: [String]) -> [CorrectionMode]? {
+        var out: [CorrectionMode] = []
+        for token in raw {
+            let resolved: [CorrectionMode]
+            if token == "all" {
+                resolved = allCases
+            } else if let mode = CorrectionMode(rawValue: token) {
+                resolved = [mode]
+            } else {
+                return nil
+            }
+            for mode in resolved where !out.contains(mode) { out.append(mode) }
+        }
+        return out
+    }
+}

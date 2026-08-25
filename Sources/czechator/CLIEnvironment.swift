@@ -28,6 +28,12 @@ struct CLIEnvironment {
         guard let profile = config.active else {
             throw ConfigError.unknownActiveProfile(config.activeProfile)
         }
+        return try makeProvider(for: profile)
+    }
+
+    /// The measurement command walks several profiles in one run, so it needs a
+    /// provider for a profile that is not the active one.
+    func makeProvider(for profile: Profile) throws -> any LLMProvider {
         let client = URLSessionHTTPClient()
         let key = try profile.apiKey.map { try Self.secretResolver.resolve($0) }
 

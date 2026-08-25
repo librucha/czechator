@@ -55,3 +55,24 @@ import Testing
         #expect(profile.verification)
     }
 }
+
+@Test func correctionModeExpandsAllToEveryCase() {
+    #expect(CorrectionMode.expand(["all"]) == CorrectionMode.allCases)
+}
+
+@Test func correctionModeExpandsRawValues() {
+    #expect(CorrectionMode.expand(["strict", "proofread"]) == [.strict, .proofread])
+}
+
+@Test func correctionModeExpandRefusesAnUnknownToken() {
+    #expect(CorrectionMode.expand(["strict", "vsechno"]) == nil)
+}
+
+@Test func correctionModeExpandKeepsTheOrderItWasGiven() {
+    #expect(CorrectionMode.expand(["proofread", "strict"]) == [.proofread, .strict])
+}
+
+@Test func correctionModeExpandDropsDuplicates() {
+    // Measuring the same mode twice is money spent for nothing.
+    #expect(CorrectionMode.expand(["strict", "strict"]) == [.strict])
+}
