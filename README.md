@@ -107,10 +107,16 @@ the menu bar. macOS will ask once for permission to show notifications.
 
 Copy some Czech text without diacritics, press `Cmd+Ctrl+D`, and paste.
 
-`make install` also clears the app's Accessibility record, because the stale
-one would otherwise sit in the list looking granted while pointing at a binary
-that no longer exists — the double tap would then do nothing at all, silently.
-Run `make reset-accessibility` on its own if you ever need to.
+Without a signing certificate the build is ad-hoc signed, and macOS then sees a
+different application on every build. `make install` clears the app's
+Accessibility record for you in that case, because the stale one would otherwise
+sit in the list looking granted while pointing at a binary that no longer exists
+— the double tap would then do nothing at all, silently. Run
+`make reset-accessibility` on its own if you ever need to.
+
+With a Developer ID certificate in your keychain the signature stops changing,
+`make install` leaves the permission alone, and you grant it once. See
+[Signing](#signing).
 
 ### Just the CLI
 
@@ -120,6 +126,58 @@ make install-cli BINDIR=/usr/local/bin # somewhere else (may need sudo)
 ```
 
 `make install-cli` warns if the target directory is not on your `PATH`.
+
+### Signing
+
+`make app` and `make install-cli` sign with the first *Developer ID Application*
+identity they find in your keychain, and fall back to an ad-hoc signature when
+there is none. Nothing to configure — check what it picked:
+
+```bash
+security find-identity -v -p codesigning   # what is available
+make app                                   # prints the identity it used
+```
+
+Override with `make app SIGN_ID="Developer ID Application: Name (TEAMID)"`, or
+force the fallback with `SIGN_ID=-`.
+
+The identity is worth having because macOS keys both the Accessibility
+permission and the Keychain ACL on the code signature. Ad-hoc signing produces a
+new one every build, so both have to be granted again every time; a Developer ID
+does not change, so both survive. Switching to one costs granting each of them
+one final time.
+
+Getting the certificate, with no Xcode required: create a CSR in Keychain Access
+(*Certificate Assistant → Request a Certificate From a Certificate Authority*,
+saved to disk), upload it at *developer.apple.com → Certificates* as **Developer
+ID Application** with profile type **G2 Sub-CA**, download and double-click the
+`.cer`. Back up the private key — without it the certificate is worthless, and a
+team is limited to five.
+
+Two things that break signing after that, both with the same unhelpful
+`errSecInternalComponent`:
+
+- **Do not set the certificate to *Always Trust* in Keychain Access.** That makes
+  macOS treat the leaf as a trust anchor, and `codesign` then refuses because a
+  leaf is not a self-signed root. Trust must stay at *Use System Defaults*.
+- **The *Developer ID Certification Authority (G2)* intermediate has to be in
+  your login keychain.** The copy macOS ships in `SystemRootCertificates.keychain`
+  serves as an anchor but is not used to build the chain. Download it from
+  [Apple](https://www.apple.com/certificateauthority/) and double-click it.
+
+Verify what you got:
+
+```bash
+codesign -dv --verbose=2 build/Czechator.app
+```
+
+Three `Authority=` lines — the identity, the Developer ID CA and Apple Root CA —
+mean the chain is complete.
+
+The build is signed but **not notarized**, so `spctl` rejects it as
+`Unnotarized Developer ID`. That is harmless here: a locally built app carries
+no quarantine attribute and Gatekeeper never evaluates it. It is what would have
+to change before handing the `.app` to someone else.
 
 ### Building without installing
 
@@ -476,13 +534,15 @@ rebuild.
 - **The CLI asks for Keychain access the first time.** A key stored from the
   app belongs to the app, and the CLI is a different program as far as macOS is
   concerned, so it prompts once — click *Always Allow*. The terminal blocks
-  until you answer. Ad-hoc signing means the approval is tied to that exact
-  binary, so a rebuilt CLI asks again.
-- **The Accessibility permission has to be granted again after every build.**
-  It is tied to the code signature, and the ad-hoc signing this project uses
-  produces a new one each time. `make install` clears the stale record for you
-  (`make reset-accessibility` does it on its own), but granting it again is
-  yours to do. This affects the double-tap trigger only.
+  until you answer. The approval is tied to the code signature: with an ad-hoc
+  one a rebuilt CLI asks again every time, with a Developer ID it asks once.
+- **Without a Developer ID, the Accessibility permission has to be granted
+  again after every build.** It is tied to the code signature, and ad-hoc
+  signing produces a new one each time. `make install` then clears the stale
+  record for you (`make reset-accessibility` does it on its own), but granting
+  it again is yours to do. A Developer ID signature does not change, so the
+  permission survives — see [Signing](#signing). This affects the double-tap
+  trigger only.
 - **Neither trigger fires into a secure input field.** While a password field
   has focus, macOS delivers no key events to any application.
 - **Wrong diacritics are not detected.** Verification proves nothing *but*
@@ -540,9 +600,11 @@ rebuild.
   exist to prevent corruption are therefore kept out of the config entirely.
 - **The clipboard is replaced silently.** There is no diff preview yet; the
   history in the menu bar is the undo.
-- **Distribution needs signing.** The build is ad-hoc signed, which is fine on
-  your own machine. Handing the `.app` to someone else would need a Developer ID
-  and notarization.
+- **Distribution needs notarization.** A Developer ID signature is enough on
+  your own machine, where a locally built app carries no quarantine attribute.
+  Handing the `.app` to someone else would additionally need notarization, which
+  this project does not do — `spctl` rejects the bundle as
+  `Unnotarized Developer ID`.
 
 ## Architecture
 

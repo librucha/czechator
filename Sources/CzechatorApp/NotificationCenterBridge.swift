@@ -4,9 +4,10 @@ import UserNotifications
 /// Thin wrapper so the model does not deal with the notification framework
 /// directly. Clicking a notification routes back through `onActivate`.
 ///
-/// Notifications are the secondary channel: an ad-hoc signed bundle may not be
-/// allowed to post them at all, so the menu bar badge remains the primary way
-/// the user learns something went wrong.
+/// Notifications are the secondary channel: a bundle the system does not
+/// recognise — an ad-hoc signed build especially — may not be allowed to post
+/// them at all, so the menu bar badge remains the primary way the user learns
+/// something went wrong.
 @MainActor
 final class NotificationCenterBridge: NSObject, UNUserNotificationCenterDelegate {
 

@@ -5,10 +5,11 @@ import ApplicationServices
 /// all.
 ///
 /// Note for anyone testing this: the permission is tied to the app's code
-/// signature, and Czechator is signed ad-hoc, so every `make install` produces
-/// what macOS considers a different application. The permission has to be
-/// granted again after each build, and the stale entry may need removing from
-/// the list by hand.
+/// signature. Built with a Developer ID in the keychain that signature is
+/// stable and the permission is granted once. Built without one it is ad-hoc,
+/// so every `make install` produces what macOS considers a different
+/// application: the permission has to be granted again after each build, and
+/// the stale entry may need removing from the list by hand.
 enum AccessibilityPermission {
 
     /// Checks without ever showing a dialog, so it is safe to call on every

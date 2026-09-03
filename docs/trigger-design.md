@@ -141,13 +141,17 @@ v nastavení zvolí dvojí stisk. Nikdy při startu.
 
 ### Past: ad-hoc podpis
 
-Oprávnění Accessibility je vázané na podpis aplikace. Czechator se podepisuje
-ad-hoc (`codesign --sign -`), tedy **novým podpisem při každém buildu**. Po
-každém `make install` považuje macOS aplikaci za jinou a oprávnění je nutné dát
-znovu; stará položka v seznamu může zůstat viset a je potřeba ji smazat.
+Oprávnění Accessibility je vázané na podpis aplikace. Bez certifikátu se
+Czechator podepisuje ad-hoc (`codesign --sign -`), tedy **novým podpisem při
+každém buildu**. Po každém `make install` považuje macOS aplikaci za jinou
+a oprávnění je nutné dát znovu; stará položka v seznamu může zůstat viset
+a je potřeba ji smazat.
 
 Řešení jsou dvě: podepisovat stabilním Developer ID (99 USD ročně), nebo to vzít
-na vědomí. Volíme druhé a zapisujeme do README jako známé omezení.
+na vědomí. Původně jsme volili druhé. **Nahrazeno:** `make app` a
+`make install-cli` dnes podepisují Developer ID identitou z klíčenky, pokud tam
+nějaká je, a na ad-hoc padají jen jako záloha — viz sekci *Signing* v README.
+Tenhle odstavec tedy popisuje jen tu záložní větev.
 
 ## 8. Architektura
 

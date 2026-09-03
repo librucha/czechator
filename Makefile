@@ -40,6 +40,30 @@ VERSION := $(shell sed -n 's/.*let version = "\(.*\)".*/\1/p' Sources/CzechatorC
 APP := build/Czechator.app
 BIN := $(APP)/Contents/MacOS/CzechatorApp
 
+# The signing identity, taken from the keychain when a Developer ID is in it and
+# ad-hoc otherwise. The fallback is not a nicety: CI runners hold no identity
+# and `make app` has to work there too. Override with:
+#   make app SIGN_ID="Developer ID Application: Name (TEAMID)"
+#
+# Which one is used matters beyond distribution. macOS keys the Accessibility
+# permission and the Keychain ACL on the signature, and an ad-hoc one differs on
+# every build, so both have to be granted again after every install. A Developer
+# ID stays the same, and both survive.
+#
+# No secure timestamp: it is only needed for notarization, which this project
+# does not do, and requiring it would break building offline.
+SIGN_ID ?= $(shell security find-identity -v -p codesigning 2>/dev/null \
+             | sed -n 's/.*"\(Developer ID Application:.*\)".*/\1/p' | head -1)
+ifeq ($(strip $(SIGN_ID)),)
+SIGN_ID := -
+endif
+
+ifeq ($(SIGN_ID),-)
+SIGN_LABEL := ad-hoc
+else
+SIGN_LABEL := $(SIGN_ID)
+endif
+
 .PHONY: app install install-cli icon reset-accessibility
 
 ICONSET_SRC := img/exports/AppIcon.appiconset
@@ -74,17 +98,21 @@ app: icon
 	  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string Czechator" \
 	    $(APP)/Contents/Info.plist >/dev/null 2>&1 || true; \
 	fi
-	codesign --force --sign - --timestamp=none $(APP)
-	@echo "hotovo: $(APP) (verze $(VERSION))"
+	codesign --force --sign "$(SIGN_ID)" --timestamp=none $(APP)
+	@echo "hotovo: $(APP) (verze $(VERSION), podpis: $(SIGN_LABEL))"
 
 # One source of truth; the bundle identifier lives in the plist.
 BUNDLE_ID := $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" Resources/Info.plist)
 
-# Every build is signed ad-hoc, so macOS sees a different application each time
-# and the previous Accessibility entry stays behind — listed and ticked, but
-# pointing at a binary that no longer exists. The double tap then silently does
-# nothing, with the settings window insisting the permission is granted.
-# Clearing the record is what makes the next launch ask again properly.
+# An ad-hoc build makes macOS see a different application each time, so the
+# previous Accessibility entry stays behind — listed and ticked, but pointing at
+# a binary that no longer exists. The double tap then silently does nothing,
+# with the settings window insisting the permission is granted. Clearing the
+# record is what makes the next launch ask again properly.
+#
+# A Developer ID build does not produce that stale record, which is why
+# `install` stops calling this once one is in use. It is still worth running by
+# hand once after switching identity, to clear what the ad-hoc builds left.
 #
 # Only ever with the bundle identifier: `tccutil reset Accessibility` on its own
 # would revoke it for every application on the machine.
@@ -101,13 +129,21 @@ install: app install-cli
 	rm -rf /Applications/Czechator.app
 	cp -R $(APP) /Applications/Czechator.app
 	@echo "nainstalovano do /Applications/Czechator.app"
+ifeq ($(SIGN_ID),-)
 	@$(MAKE) --no-print-directory reset-accessibility
+else
+	@echo "Podepsano jako $(SIGN_ID)"
+	@echo "Zpristupneni i Klicenka prezijou dalsi buildy. Po zmene podpisu je"
+	@echo "potreba udelit je jeste jednou; zbytek po ad-hoc buildech smaze"
+	@echo "  make reset-accessibility"
+endif
 
 install-cli:
 	swift build -c release --product czechator
 	@mkdir -p $(BINDIR)
 	cp .build/release/czechator $(BINDIR)/czechator
-	@echo "nainstalovano do $(BINDIR)/czechator"
+	codesign --force --sign "$(SIGN_ID)" --timestamp=none $(BINDIR)/czechator
+	@echo "nainstalovano do $(BINDIR)/czechator (podpis: $(SIGN_LABEL))"
 	@case ":$$PATH:" in \
 	  *":$(BINDIR):"*) ;; \
 	  *) echo "POZOR: $(BINDIR) neni v PATH, prikaz czechator nepujde spustit" ;; \
