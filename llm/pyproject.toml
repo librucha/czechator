@@ -3,7 +3,13 @@ name = "czllm"
 version = "0.1.0"
 description = "Fine-tuning a small model for Czech diacritics restoration"
 requires-python = ">=3.12,<3.13"
-dependencies = ["pyyaml>=6.0"]
+dependencies = [
+    "datasets>=5",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+czllm = "czllm.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=9"]
