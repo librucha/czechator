@@ -28,15 +28,15 @@ spisovné korpusy je skoro neobsahují.
 - pouze režim `strict` — doplnění diakritiky, nic dalšího,
 - výstup: model spustitelný v Ollamě (`ollama create`) i v `llama-server`
   (stejný GGUF),
-- vstupní smlouva kompatibilní s dnešním czechatorem (drop-in) **i** krátká
-  smlouva pro budoucí použití (viz §4),
+- vstupní kontrakt kompatibilní s dnešním czechatorem (drop-in) **i** krátký
+  kontrakt pro budoucí použití (viz §4),
 - sweep 2–4 malých kandidátů se stejnými daty a stejným evalem, výběr podle čísel.
 
 **Mimo rozsah:**
 
 - režimy `minorFixes` a `proofread` — případně pozdější samostatná iterace,
 - změny ve Swift kódu czechatoru — drop-in formát je nevyžaduje; per-profile
-  system prompt pro krátkou smlouvu se udělá jen tehdy, když ho měření ospravedlní,
+  system prompt pro krátký kontrakt se udělá jen tehdy, když ho měření ospravedlní,
 - trénink v cloudu — vše běží lokálně (Apple M4 Max, 64 GB).
 
 **Pracovní režim:** iterativní. Po každém runu uživatel model intenzivně testuje
@@ -72,7 +72,7 @@ llm/
     numbered_list.py      # port NumberedList.encode/escape
     data/                 # stažení, filtrace, dedup
     synth/                # generování hybridu, hunspell kontrola
-    format/               # augmentace, šablony smluv, JSONL
+    format/               # augmentace, šablony kontraktů, JSONL
     train/                # obal nad mlx_lm.lora a mlx_lm.fuse
     export/               # GGUF, kvantizace, Modelfile, ollama create
     eval/                 # metriky, latence, report
@@ -95,22 +95,22 @@ používá stejnou tabulku a **test ji parsuje přímo ze
 rozejít. Tím je zaručeno, že trénovací vstup vypadá přesně jako to, co czechator
 posílá a čím ověřuje výstup.
 
-## 4. Vstupní smlouva
+## 4. Vstupní kontrakt
 
 Model se trénuje na mixu dvou formátů nad stejnými daty:
 
 | formát | system | user | podíl |
 |---|---|---|---|
 | drop-in | `PromptBuilder.defaultSystem`, byte-identický | `NumberedList.encode(items)` | ~60 % |
-| krátká smlouva | `Restore Czech diacritics in each numbered item. Change nothing else.` | `NumberedList.encode(items)` | ~40 % |
+| krátký kontrakt | `Restore Czech diacritics in each numbered item. Change nothing else.` | `NumberedList.encode(items)` | ~40 % |
 
 Odpověď je vždy číslovaný seznam se stejným počtem a číslováním položek.
 
 - **Drop-in** znamená, že stačí v profilu czechatoru změnit `model` — testovat
   se dá od první iterace bez zásahu do Swiftu. `defaultSystem` se pro trénink
   čte ze Swift zdroje, ne kopíruje ručně.
-- **Krátká smlouva** se zapíše jako `SYSTEM` do Modelfile: když klient system
-  nepošle, použije se ona. Czechator dnes system posílá vždy, takže ji zatím
+- **Krátký kontrakt** se zapíše jako `SYSTEM` do Modelfile: když klient system
+  nepošle, použije se on. Czechator dnes system posílá vždy, takže ho zatím
   nevyužije; připravuje cestu k rychlejšímu cold startu.
 
 ## 5. Data
@@ -220,7 +220,7 @@ ollama create czechator-<base>:v<N>-<quant> -f Modelfile
 ```
 
 Modelfile: `TEMPLATE` z base modelu, `PARAMETER temperature 0`,
-`PARAMETER num_ctx 4096`, stop tokeny, `SYSTEM` = krátká smlouva.
+`PARAMETER num_ctx 4096`, stop tokeny, `SYSTEM` = krátký kontrakt.
 
 ### 7.4 Reprodukovatelnost
 
