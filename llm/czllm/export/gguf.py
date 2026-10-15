@@ -6,6 +6,7 @@ short contract becomes the Modelfile SYSTEM: used only when a client sends
 no system prompt (czechator always sends one).
 """
 
+import json
 import re
 import shutil
 import subprocess
@@ -38,6 +39,38 @@ def render_modelfile(from_path: str, template: str, stops: list[str], system: st
     return "\n".join(lines) + "\n"
 
 
+def _mtp_weights_missing(fused: Path) -> bool:
+    """mlx-lm does not load Qwen3.5's multi-token-prediction head, so the fused
+    weights lack `mtp.*` while config.json still declares the layer; the
+    converter would then declare a block llama.cpp cannot find."""
+    config = json.loads((fused / "config.json").read_text(encoding="utf-8"))
+    declared = any(s.get("mtp_num_hidden_layers") for s in (config, config.get("text_config", {})))
+    index = fused / "model.safetensors.index.json"
+    names = json.loads(index.read_text(encoding="utf-8"))["weight_map"] if index.exists() else {}
+    return declared and not any("mtp." in name for name in names)
+
+
+def convert_cmd(fused: Path, out: Path) -> list[str]:
+    cmd = [str(CONVERT_PY), str(LLAMA_DIR / "convert_hf_to_gguf.py"), str(fused),
+           "--outfile", str(out), "--outtype", "f16"]
+    # Dropping the MTP head costs only speculative decoding, which Ollama does not use.
+    return cmd + ["--no-mtp"] if _mtp_weights_missing(fused) else cmd
+
+
+def hf_checkpoint(run: Path, c: Candidate) -> Path:
+    """Base weights in HF layout plus the adapted linear weights; see merge.py
+    for why the fused MLX checkpoint cannot be converted directly."""
+    hf = run / "hf"
+    if not hf.exists():
+        from huggingface_hub import snapshot_download
+
+        from czllm.export.merge import hf_merge
+
+        base = Path(snapshot_download(c.hf))
+        hf_merge(base, run / "fused", run / "adapters" / "adapters.safetensors", hf)
+    return hf
+
+
 def model_tag(name: str, version: int | str, quant: str) -> str:
     return f"czechator-{name}:v{version}-{quant.lower()}"
 
@@ -54,12 +87,12 @@ def export(run: Path, c: Candidate, version: int | str, quants=("Q8_0", "Q4_K_M"
     _run(["ollama", "pull", c.ollama_base])
     template = _run(["ollama", "show", "--template", c.ollama_base]).rstrip("\n")
     stops = parse_stops(_run(["ollama", "show", "--parameters", c.ollama_base]))
-    fused = run / "fused"
+    hf = hf_checkpoint(run, c)
     tags = []
     if via == "ollama":
         for quant in quants:
             tag = model_tag(c.name, version, quant)
-            (run / "Modelfile").write_text(render_modelfile("./fused", template, stops, SHORT_SYSTEM), encoding="utf-8")
+            (run / "Modelfile").write_text(render_modelfile("./hf", template, stops, SHORT_SYSTEM), encoding="utf-8")
             _run(["ollama", "create", tag, "--quantize", quant.lower(), "-f", "Modelfile"], cwd=run)
             tags.append(tag)
         return tags
@@ -68,8 +101,7 @@ def export(run: Path, c: Candidate, version: int | str, quants=("Q8_0", "Q4_K_M"
     gguf.mkdir(exist_ok=True)
     f16 = gguf / "model-f16.gguf"
     if not f16.exists():
-        _run([str(CONVERT_PY), str(LLAMA_DIR / "convert_hf_to_gguf.py"), str(fused),
-              "--outfile", str(f16), "--outtype", "f16"])
+        _run(convert_cmd(hf, f16))
     for quant in quants:
         out = gguf / f"model-{quant.lower()}.gguf"
         if not out.exists():

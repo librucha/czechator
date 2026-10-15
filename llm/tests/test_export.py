@@ -38,5 +38,34 @@ def test_failed_tool_reports_its_stderr():
         _run([sys.executable, "-c", "import sys; sys.stderr.write('ValueError: Tokenizer class Foo does not exist'); sys.exit(1)"])
 
 
+def _fused(path, config, weights):
+    import json
+
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "config.json").write_text(json.dumps(config))
+    (path / "model.safetensors.index.json").write_text(
+        json.dumps({"weight_map": {w: "model.safetensors" for w in weights}}))
+    return path
+
+
+def test_convert_skips_mtp_when_fuse_dropped_its_weights(tmp_path):
+    from czllm.export.gguf import convert_cmd
+
+    # mlx-lm does not keep Qwen3.5's mtp.* weights; without --no-mtp the
+    # converter declares a block llama.cpp then cannot find.
+    fused = _fused(tmp_path, {"text_config": {"num_hidden_layers": 24, "mtp_num_hidden_layers": 1}},
+                   ["language_model.model.layers.0.mlp.gate_proj.weight"])
+    assert "--no-mtp" in convert_cmd(fused, tmp_path / "out.gguf")
+
+
+def test_convert_keeps_mtp_when_weights_exist_or_none_declared(tmp_path):
+    from czllm.export.gguf import convert_cmd
+
+    with_weights = _fused(tmp_path / "a", {"mtp_num_hidden_layers": 1}, ["mtp.layers.0.mlp.gate_proj.weight"])
+    assert "--no-mtp" not in convert_cmd(with_weights, tmp_path / "out.gguf")
+    gemma = _fused(tmp_path / "b", {"num_hidden_layers": 18}, ["model.layers.0.mlp.gate_proj.weight"])
+    assert "--no-mtp" not in convert_cmd(gemma, tmp_path / "out.gguf")
+
+
 def test_model_tag():
     assert model_tag("qwen35-0.8b", 1, "Q4_K_M") == "czechator-qwen35-0.8b:v1-q4_k_m"
