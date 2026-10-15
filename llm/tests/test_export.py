@@ -28,5 +28,15 @@ def test_render_modelfile_refuses_triple_quotes():
         render_modelfile("./m.gguf", 'x """ y', [], SHORT_SYSTEM)
 
 
+def test_failed_tool_reports_its_stderr():
+    import sys
+
+    from czllm.export.gguf import _run
+
+    # The gate records the exception text; "exit status 1" alone says nothing.
+    with pytest.raises(RuntimeError, match="Tokenizer class Foo does not exist"):
+        _run([sys.executable, "-c", "import sys; sys.stderr.write('ValueError: Tokenizer class Foo does not exist'); sys.exit(1)"])
+
+
 def test_model_tag():
     assert model_tag("qwen35-0.8b", 1, "Q4_K_M") == "czechator-qwen35-0.8b:v1-q4_k_m"

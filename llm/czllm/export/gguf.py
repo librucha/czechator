@@ -43,7 +43,11 @@ def model_tag(name: str, version: int | str, quant: str) -> str:
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> str:
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True).stdout
+    proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        tail = "\n".join((proc.stderr or proc.stdout).strip().splitlines()[-5:])
+        raise RuntimeError(f"{Path(cmd[0]).name} {' '.join(cmd[1:2])} exited {proc.returncode}: {tail}")
+    return proc.stdout
 
 
 def export(run: Path, c: Candidate, version: int | str, quants=("Q8_0", "Q4_K_M"), via: str = "llama.cpp") -> list[str]:
