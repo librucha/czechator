@@ -127,41 +127,53 @@ def submit(args) -> int:
     return 0
 
 
-def collect(args) -> int:
+def filter_messages(raw: list[tuple[str, str, str, dict]], checker) -> tuple[dict[str, list[dict]], dict]:
+    """raw: (split, category, custom_id, message). Hunspell is asked once for
+    the whole vocabulary — one call per message re-spawned it 16 000 times."""
+    texts = [normalize(m["text"]).strip() for _, _, _, m in raw]
+    vocabulary = sorted({w for (_, category, _, _), t in zip(raw, texts) if category not in NEGATIVE for w in words(t)})
+    bad = set(suspicious_words(vocabulary, checker))
+    suspicious = lambda ws: [w for w in ws if w in bad]
 
-    api = client()
-    batch_id = json.loads(STATE.read_text(encoding="utf-8"))["id"]
-    while (batch := api.messages.batches.retrieve(batch_id)).processing_status != "ended":
-        print(f"{batch.processing_status}: {batch.request_counts.processing} processing")
-        time.sleep(60)
-
-    checker = Hunspell()
-    suspicious = lambda ws: suspicious_words(ws, checker)
     stats: Counter[str] = Counter()
     seen: set[str] = set()
     out: dict[str, list[dict]] = {"train": [], "eval": []}
+    for (split, category, custom_id, m), text in zip(raw, texts):
+        kind = "negative" if category in NEGATIVE else "hybrid"
+        reason = accept_message(kind, text, suspicious)
+        if reason is None and fold_key(text) in seen:
+            reason = "duplicate"
+        stats[reason or "accepted"] += 1
+        if reason is None:
+            seen.add(fold_key(text))
+            out[split].append({
+                "split": split, "category": category, "kind": kind, "custom_id": custom_id,
+                "text": text, "english_terms": m["english_terms"],
+            })
+    return out, dict(stats)
+
+
+def collect(args) -> int:
+    api = client()
+    batch_id = json.loads(STATE.read_text(encoding="utf-8"))["id"]
+    while (batch := api.messages.batches.retrieve(batch_id)).processing_status != "ended":
+        print(f"{batch.processing_status}: {batch.request_counts.processing} processing", flush=True)
+        time.sleep(60)
+
+    raw: list[tuple[str, str, str, dict]] = []
+    failed = 0
     for entry in api.messages.batches.results(batch_id):
         messages = parse_result(entry)
         if messages is None:
-            stats["request-failed"] += 1
+            failed += 1
             continue
         split, category, _ = entry.custom_id.split("--")
-        kind = "negative" if category in NEGATIVE else "hybrid"
-        for m in messages:
-            text = normalize(m["text"]).strip()
-            reason = accept_message(kind, text, suspicious)
-            if reason is None and fold_key(text) in seen:
-                reason = "duplicate"
-            stats[reason or "accepted"] += 1
-            if reason is None:
-                seen.add(fold_key(text))
-                out[split].append({
-                    "split": split, "category": category, "kind": kind, "custom_id": entry.custom_id,
-                    "text": text, "english_terms": m["english_terms"],
-                })
+        raw += [(split, category, entry.custom_id, m) for m in messages]
+    out, stats = filter_messages(raw, Hunspell())
+    stats["request-failed"] = failed
     for split, records in out.items():
         write_jsonl(Path(f"data/synth/{split}.jsonl"), records)
-    print(dict(stats))
+    print(stats)
     return 0
 
 

@@ -56,13 +56,19 @@ class Hunspell:
     def suggestions(self, words: list[str]) -> dict[str, list[str] | None]:
         if not words:
             return {}
-        # "^" makes hunspell treat each line as text, never as a command.
-        proc = subprocess.run(
-            ["hunspell", "-a", "-i", "utf-8", "-d", str(self.dictionary)],
-            input="".join(f"^{w}\n" for w in words),
-            capture_output=True, text=True, encoding="utf-8", check=True,
-        )
-        return parse_pipe_output(words, proc.stdout)
+        # Suggestions are the slow part (~50 ms a word); ask only for rejected words.
+        misspelled = self.misspelled(words)
+        rejected = [w for w in words if w in misspelled]
+        result: dict[str, list[str] | None] = {w: None for w in words}
+        if rejected:
+            # "^" makes hunspell treat each line as text, never as a command.
+            proc = subprocess.run(
+                ["hunspell", "-a", "-i", "utf-8", "-d", str(self.dictionary)],
+                input="".join(f"^{w}\n" for w in rejected),
+                capture_output=True, text=True, encoding="utf-8", check=True,
+            )
+            result.update(parse_pipe_output(rejected, proc.stdout))
+        return result
 
     def misspelled(self, words: list[str]) -> set[str]:
         """Rejected words only, no suggestions: fast enough for a whole corpus."""

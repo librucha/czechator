@@ -57,6 +57,29 @@ def test_accept_message():
     assert accept_message("hybrid", "   ", none_suspicious) == "empty"
 
 
+def test_filter_messages_asks_the_checker_once_for_the_whole_vocabulary():
+    from czllm.synth.batch import filter_messages
+
+    class Checker:
+        calls = 0
+
+        def suggestions(self, words):
+            Checker.calls += 1
+            return {w: (["zítra"] if w == "zitra" else None) for w in words}
+
+    raw = [
+        ("train", "slack_dev", "train--slack_dev--0000", {"text": "Pushnu to zítra.", "english_terms": ["Pushnu"]}),
+        ("train", "slack_dev", "train--slack_dev--0000", {"text": "Mergnu to zitra ráno.", "english_terms": []}),
+        ("train", "slack_dev", "train--slack_dev--0001", {"text": "pushnu to zítra.", "english_terms": ["pushnu"]}),
+        ("eval", "english", "eval--english--0000", {"text": "Ship it.", "english_terms": []}),
+    ]
+    out, stats = filter_messages(raw, Checker())
+    assert Checker.calls == 1
+    assert [r["text"] for r in out["train"]] == ["Pushnu to zítra."]
+    assert [r["text"] for r in out["eval"]] == ["Ship it."]
+    assert stats == {"accepted": 2, "spelling": 1, "duplicate": 1}
+
+
 def test_client_sends_the_workspace_header_when_configured(monkeypatch):
     from czllm.synth.batch import client
 
