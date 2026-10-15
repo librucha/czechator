@@ -1,0 +1,27 @@
+dataset: data/sets/s01
+candidates:
+  - name: qwen35-0.8b
+    hf: Qwen/Qwen3.5-0.8B
+    ollama_base: qwen3.5:0.8b
+    lr: 1.0e-4
+  - name: qwen35-2b
+    hf: Qwen/Qwen3.5-2B
+    ollama_base: qwen3.5:2b
+    lr: 1.0e-4
+  - name: gemma4-e2b
+    hf: google/gemma-4-E2B-it
+    ollama_base: gemma4:e2b
+    lr: 1.0e-4
+  - name: gemma3-270m
+    hf: google/gemma-3-270m-it
+    ollama_base: gemma3:270m
+    lr: 2.0e-4
+train:
+  rank: 16
+  alpha: 32
+  batch_size: 16
+  epochs: 1
+  max_seq_length: 2048
+  steps_per_eval: 200
+  save_every: 200
+  seed: 0

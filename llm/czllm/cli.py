@@ -12,6 +12,7 @@ COMMAND_MODULES = [
     "czllm.eval.metrics",
     "czllm.eval.harness",
     "czllm.eval.report",
+    "czllm.train.run",
 ]
 
 
