@@ -1,0 +1,17 @@
+[project]
+name = "czllm"
+version = "0.1.0"
+description = "Fine-tuning a small model for Czech diacritics restoration"
+requires-python = ">=3.12,<3.13"
+dependencies = ["pyyaml>=6.0"]
+
+[dependency-groups]
+dev = ["pytest>=9"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs external tools (hunspell, ollama)"]
