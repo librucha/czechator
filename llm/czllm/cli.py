@@ -6,6 +6,7 @@ import importlib
 
 COMMAND_MODULES = [
     "czllm.data.corpus",
+    "czllm.synth.batch",
 ]
 
 
