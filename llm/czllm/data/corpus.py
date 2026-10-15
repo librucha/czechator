@@ -6,7 +6,8 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 from czllm.jsonl import read_jsonl, write_jsonl
-from czllm.synth.spell import Checker, Hunspell, suspicious_words
+from czllm.fold import fold
+from czllm.synth.spell import Hunspell
 from czllm.text import WORD_RE, diacritic_word_ratio, fold_key, normalize, words
 
 MIN_DOC_RATIO = 0.25
@@ -50,12 +51,17 @@ def collect(docs: Iterable[tuple[str, str]], source: str, limit: int) -> Iterato
             yield {"source": source, "doc_id": str(doc_id), "lines": lines}
 
 
-def spell_filter(docs: list[dict], checker: Checker) -> list[dict]:
-    """Drops lines containing a word hunspell rejects while suggesting the same
-    word with other diacritics — a line typed without (some) accents would be
-    a wrong target. One hunspell call over the unique words of all docs."""
+def spell_filter(docs: list[dict], checker) -> list[dict]:
+    """Drops lines containing a disputed word: one hunspell rejects while an
+    accepted spelling with the same fold occurs in the corpus itself. Such a
+    line was typed without (some) accents and would be a wrong target.
+
+    Hunspell suggestions would also catch variants absent from the corpus,
+    but cost ~50 ms per unknown word — hours for a corpus full of names."""
     vocabulary = sorted({w for d in docs for line in d["lines"] for w in WORD_RE.findall(line)})
-    bad = set(suspicious_words(vocabulary, checker))
+    rejected = checker.misspelled(vocabulary)
+    accepted_folds = {fold(w).lower() for w in vocabulary if w not in rejected}
+    bad = {w for w in rejected if fold(w).lower() in accepted_folds}
     out = []
     for doc in docs:
         lines = [l for l in doc["lines"] if not bad.intersection(WORD_RE.findall(l))]

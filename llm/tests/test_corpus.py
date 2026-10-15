@@ -23,18 +23,25 @@ def test_document_lines_filters_length_and_unaccented_lines():
 def test_spell_filter_drops_lines_with_disputed_diacritics_and_empty_docs():
     from czllm.data.corpus import spell_filter
 
+    # A word is disputed when hunspell rejects it and an accepted spelling with
+    # the same fold occurs in the corpus itself; asking hunspell for
+    # suggestions instead costs ~50 ms per unknown word, hours per corpus.
     docs = [
-        {"source": "s", "doc_id": "a", "lines": ["plavky male holky – album", "Včera jsem koupil nový počítač."]},
+        {"source": "s", "doc_id": "a", "lines": [
+            "plavky male holky – album", "Včera jsem koupil nový počítač.", "Malé děti Máme rádi."]},
         {"source": "s", "doc_id": "b", "lines": ["Mame radi kafe."]},
+        {"source": "s", "doc_id": "c", "lines": ["Navštívil Kruszwici v Polsku."]},
     ]
 
     class Checker:
-        def suggestions(self, words):
-            table = {"male": ["malé"], "Mame": ["Máme"], "radi": ["rádi"]}
-            return {w: table.get(w) for w in words}
+        def misspelled(self, words):
+            return {"male", "Mame", "radi", "Kruszwici"} & set(words)
 
     out = spell_filter(docs, Checker())
-    assert out == [{"source": "s", "doc_id": "a", "lines": ["Včera jsem koupil nový počítač."]}]
+    assert out == [
+        {"source": "s", "doc_id": "a", "lines": ["Včera jsem koupil nový počítač.", "Malé děti Máme rádi."]},
+        {"source": "s", "doc_id": "c", "lines": ["Navštívil Kruszwici v Polsku."]},
+    ]
 
 
 def test_collect_dedups_by_fold_key_and_respects_limit():

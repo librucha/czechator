@@ -64,6 +64,17 @@ class Hunspell:
         )
         return parse_pipe_output(words, proc.stdout)
 
+    def misspelled(self, words: list[str]) -> set[str]:
+        """Rejected words only, no suggestions: fast enough for a whole corpus."""
+        if not words:
+            return set()
+        proc = subprocess.run(
+            ["hunspell", "-l", "-i", "utf-8", "-d", str(self.dictionary)],
+            input="\n".join(words) + "\n",
+            capture_output=True, text=True, encoding="utf-8", check=True,
+        )
+        return set(proc.stdout.split())
+
 
 def suspicious_words(words: Iterable[str], checker: Checker) -> list[str]:
     unique = list(dict.fromkeys(words))

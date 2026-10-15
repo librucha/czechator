@@ -52,6 +52,15 @@ def test_suspicious_only_when_a_suggestion_differs_by_diacritics():
     not shutil.which("hunspell") or not Path(f"{DEFAULT_DICT}.dic").exists(),
     reason="hunspell or data/dict/cs_CZ missing (make dict)",
 )
+def test_real_hunspell_lists_misspelled_words():
+    assert Hunspell(DEFAULT_DICT).misspelled(["žluťoučký", "zlutoucky", "kůň"]) == {"zlutoucky"}
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    not shutil.which("hunspell") or not Path(f"{DEFAULT_DICT}.dic").exists(),
+    reason="hunspell or data/dict/cs_CZ missing (make dict)",
+)
 def test_real_hunspell_flags_missing_hacek():
     result = suspicious_words(["žluťoučký", "zlutoucky"], Hunspell(DEFAULT_DICT))
     assert "zlutoucky" in result
