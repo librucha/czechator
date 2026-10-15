@@ -9,24 +9,26 @@ SWEEP = Path(__file__).resolve().parents[1] / "configs" / "sweep-01.yaml"
 
 def test_load_sweep():
     sweep = load_sweep(SWEEP)
-    assert [c.name for c in sweep.candidates] == ["qwen35-0.8b", "qwen35-2b", "gemma4-e2b", "gemma3-270m"]
+    # Qwen3.5 is out: mlx-lm trains its gated delta layers through a Python
+    # per-token loop (qwen3_5.py: use_kernel=not self.training), ~26 tok/s.
+    assert [c.name for c in sweep.candidates] == ["gemma4-e2b", "gemma3-270m"]
     assert candidate(sweep, "gemma3-270m").lr == 2e-4
     assert sweep.train.max_seq_length == 2560
 
 
 def test_mlx_config_one_epoch_and_lora_scale():
     sweep = load_sweep(SWEEP)
-    c = candidate(sweep, "qwen35-0.8b")
+    c = candidate(sweep, "gemma4-e2b")
     cfg = mlx_config(c, sweep.train, Path("d"), Path("a"), n_train=40_000)
     assert cfg["iters"] == 2500
     assert cfg["lora_parameters"] == {"rank": 16, "scale": 2.0, "dropout": 0.0}
     assert cfg["mask_prompt"] is True and cfg["fine_tune_type"] == "lora" and cfg["num_layers"] == -1
-    assert cfg["model"] == "Qwen/Qwen3.5-0.8B" and cfg["learning_rate"] == 1e-4
+    assert cfg["model"] == "google/gemma-4-E2B-it" and cfg["learning_rate"] == 1e-4
 
 
 def test_mlx_config_overrides_for_gate():
     sweep = load_sweep(SWEEP)
-    cfg = mlx_config(candidate(sweep, "qwen35-0.8b"), sweep.train, Path("d"), Path("a"), 400, iters=50, batch_size=4)
+    cfg = mlx_config(candidate(sweep, "gemma4-e2b"), sweep.train, Path("d"), Path("a"), 400, iters=50, batch_size=4)
     assert cfg["iters"] == 50 and cfg["batch_size"] == 4
 
 

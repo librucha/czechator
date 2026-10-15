@@ -1,13 +1,8 @@
 dataset: data/sets/s01
+# Qwen3.5-0.8B and -2B passed the export gate but were dropped: mlx-lm 0.32
+# trains their gated delta layers through a Python per-token loop
+# (models/qwen3_5.py: use_kernel=not self.training), ~26 trained tok/s on 0.8B.
 candidates:
-  - name: qwen35-0.8b
-    hf: Qwen/Qwen3.5-0.8B
-    ollama_base: qwen3.5:0.8b
-    lr: 1.0e-4
-  - name: qwen35-2b
-    hf: Qwen/Qwen3.5-2B
-    ollama_base: qwen3.5:2b
-    lr: 1.0e-4
   - name: gemma4-e2b
     hf: google/gemma-4-E2B-it
     ollama_base: gemma4:e2b
