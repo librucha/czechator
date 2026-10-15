@@ -10,6 +10,8 @@ COMMAND_MODULES = [
     "czllm.eval.sets",
     "czllm.format.build",
     "czllm.eval.metrics",
+    "czllm.eval.harness",
+    "czllm.eval.report",
 ]
 
 
