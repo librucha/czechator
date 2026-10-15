@@ -55,3 +55,20 @@ def test_accept_message():
     assert accept_message("negative", "git push origin main", none_suspicious) is None
     assert accept_message("negative", "Hotovo, díky.", none_suspicious) == "has-diacritics"
     assert accept_message("hybrid", "   ", none_suspicious) == "empty"
+
+
+def test_default_plan_has_headroom_over_the_build_mix():
+    from czllm.format.build import BuildConfig
+
+    plan, cfg = SynthPlan(), BuildConfig()
+    wanted = cfg.total + cfg.valid
+    assert plan.train_hybrid * plan.per_request >= 1.25 * round(cfg.mix["hybrid"] * wanted)
+    assert plan.train_negative * plan.per_request >= 1.25 * round(cfg.mix["negative"] * wanted)
+
+
+def test_dry_run_states_the_estimate_is_a_lower_bound(capsys):
+    from czllm.synth.batch import submit
+
+    assert submit(NS(model="claude-opus-5-5", yes=False)) == 0
+    out = capsys.readouterr().out
+    assert "at least $" in out and "thinking" in out and "Dry run" in out

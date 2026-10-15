@@ -12,7 +12,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from czllm.eval.sets import EVAL_PATHS, eval_keys, is_heldout, segments
+from czllm.eval.sets import EVAL_PATHS, eval_keys, is_heldout, require_eval_sets, segments
 from czllm.format.augment import AugmentConfig, augment
 from czllm.format.contracts import MAX_BATCH_CHARS, chat_record, systems
 from czllm.format.validate import DatasetError, validate_file
@@ -119,6 +119,7 @@ def _sha256(path: Path) -> str:
 def run_build(args) -> int:
     cfg = BuildConfig()
     rng = random.Random(0)
+    require_eval_sets()
     excluded = eval_keys(EVAL_PATHS.values())
     synth = list(read_jsonl(Path("data/synth/train.jsonl")))
     units = {
@@ -146,6 +147,7 @@ def run_build(args) -> int:
 def run_validate(args) -> int:
     out = Path("data/sets") / args.id
     known = set(systems().values())
+    require_eval_sets()
     excluded = eval_keys(EVAL_PATHS.values())
     try:
         for name in ("train.jsonl", "valid.jsonl"):

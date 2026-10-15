@@ -30,8 +30,10 @@ STATE = Path("data/synth/batch.json")
 class SynthPlan:
     model: str = "claude-opus-5-5"
     per_request: int = 20
-    train_hybrid: int = 440      # ~8 800 messages, margin for filtered ones
-    train_negative: int = 220    # ~4 400 messages
+    # >= 25 % headroom over the build mix: hunspell, duplicates and failed
+    # requests all cost units, and a shortfall means a second paid batch.
+    train_hybrid: int = 520      # ~10 400 messages for 8 200 units
+    train_negative: int = 260    # ~5 200 messages for 4 100 units
     eval_hybrid: int = 24        # ~480 messages, 300 go to review
 
 
@@ -98,7 +100,10 @@ def submit(args) -> int:
     plan = SynthPlan(model=args.model)
     requests = build_requests(plan)
     cost = estimate_usd(len(requests), plan.model)
-    print(f"{len(requests)} requests on {plan.model}, estimated ${cost:.2f} (Batch API, effort low)")
+    # The model cannot turn thinking off; effort low only shrinks it, and those
+    # tokens are billed on top of the 3 000-token answer assumed here.
+    print(f"{len(requests)} requests on {plan.model}, estimated at least ${cost:.2f} "
+          "(Batch API, effort low; thinking tokens not included)")
     if not args.yes:
         print("Dry run. Re-run with --yes to submit.")
         return 0

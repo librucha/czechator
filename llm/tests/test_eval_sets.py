@@ -69,3 +69,16 @@ def test_eval_keys_cover_every_segment(tmp_path):
 
 def test_segments_are_non_empty_lines():
     assert segments("a\n\n b \n") == ["a", " b "]
+
+
+def test_require_eval_sets_refuses_when_web_or_hybrid_is_missing(tmp_path):
+    import pytest
+
+    from czllm.eval.sets import require_eval_sets
+
+    paths = {"web": tmp_path / "web.jsonl", "hybrid": tmp_path / "hybrid.jsonl", "private": tmp_path / "p.jsonl"}
+    write_jsonl(paths["web"], [{"id": "w", "text": "Věta."}])
+    with pytest.raises(SystemExit, match="hybrid"):
+        require_eval_sets(paths)
+    write_jsonl(paths["hybrid"], [{"id": "h", "text": "Mergnu to."}])
+    require_eval_sets(paths)   # private is optional

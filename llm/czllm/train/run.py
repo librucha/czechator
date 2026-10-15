@@ -9,8 +9,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from collections.abc import Callable
+
 import yaml
 
+from czllm.eval.sets import EVAL_PATHS, eval_keys, require_eval_sets
+from czllm.format.contracts import systems
+from czllm.format.validate import DatasetError, validate_file
+from czllm.jsonl import read_jsonl
 from czllm.swift_source import REPO_ROOT
 
 RUNS = Path("runs")
@@ -31,7 +37,7 @@ class TrainSettings:
     alpha: int = 32
     batch_size: int = 16
     epochs: int = 1
-    max_seq_length: int = 2048
+    max_seq_length: int = 2560
     steps_per_eval: int = 200
     save_every: int = 200
     seed: int = 0
@@ -112,8 +118,37 @@ def _tee(cmd: list[str], log: Path) -> None:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
 
 
+def preflight(data_dir: Path, count_tokens: Callable[[list[dict]], int], limit: int, eval_keys: set[str]) -> None:
+    """Spec §5.3 on the training path: every record valid, none leaking eval
+    text, none longer than max_seq_length — MLX would silently cut the end of
+    the answer and the model would learn a truncated output."""
+    known = set(systems().values())
+    for name in ("train.jsonl", "valid.jsonl"):
+        path = data_dir / name
+        validate_file(path, known, eval_keys)
+        for n, record in enumerate(read_jsonl(path), start=1):
+            tokens = count_tokens(record["messages"])
+            if tokens > limit:
+                raise DatasetError(f"{path}:{n}: {tokens} tokens > max_seq_length {limit}")
+
+
+def token_count(encoded) -> int:
+    # Newer transformers return a BatchEncoding (a dict) instead of a list.
+    if isinstance(encoded, dict) or hasattr(encoded, "keys"):
+        encoded = encoded["input_ids"]
+    return len(encoded)
+
+
+def chat_token_counter(hf: str) -> Callable[[list[dict]], int]:
+    from transformers import AutoTokenizer
+
+    tok = AutoTokenizer.from_pretrained(hf)
+    return lambda messages: token_count(tok.apply_chat_template(messages, tokenize=True))
+
+
 def train(run: Path, c: Candidate, s: TrainSettings, data_dir: Path,
           iters: int | None = None, batch_size: int | None = None) -> Path:
+    preflight(data_dir, chat_token_counter(c.hf), s.max_seq_length, eval_keys(EVAL_PATHS.values()))
     n_train = sum(1 for _ in (data_dir / "train.jsonl").open(encoding="utf-8"))
     adapters = run / "adapters"
     cfg = mlx_config(c, s, data_dir, adapters, n_train, iters, batch_size)
@@ -133,6 +168,7 @@ def fuse(run: Path, c: Candidate) -> Path:
 def run_cli(args) -> int:
     sweep = load_sweep(args.sweep)
     c = candidate(sweep, args.candidate)
+    require_eval_sets()
     run = new_run_dir(RUNS, c.name, datetime.now())
     train(run, c, sweep.train, args.data or sweep.dataset, args.iters, args.batch_size)
     fuse(run, c)

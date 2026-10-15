@@ -92,6 +92,16 @@ def eval_keys(paths: Iterable[Path]) -> set[str]:
     return keys
 
 
+def require_eval_sets(paths: dict[str, Path] = EVAL_PATHS) -> None:
+    """The leak check is only as good as the sets it knows; without web and
+    hybrid it would pass everything. Private is optional."""
+    missing = [name for name in ("web", "hybrid") if not paths[name].exists()]
+    if missing:
+        raise SystemExit(f"eval sets missing: {', '.join(missing)} — freeze them first (czllm eval-sets)")
+    if not paths["private"].exists():
+        print(f"note: {paths['private']} absent, private texts are not excluded")
+
+
 def _refuse_overwrite(path: Path, force: bool) -> None:
     if path.exists() and not force:
         raise SystemExit(f"{path} exists and is frozen; pass --force to replace it")

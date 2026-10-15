@@ -21,7 +21,7 @@ train:
   alpha: 32
   batch_size: 16
   epochs: 1
-  max_seq_length: 2048
+  max_seq_length: 2560
   steps_per_eval: 200
   save_every: 200
   seed: 0

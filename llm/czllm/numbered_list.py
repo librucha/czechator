@@ -68,7 +68,9 @@ def unescape(s: str) -> str:
         nxt = s[i + 1]
         if nxt == "u":
             hex_digits = s[i + 2 : i + 6]
-            if len(hex_digits) == 4 and all(c in "0123456789abcdefABCDEF" for c in hex_digits):
+            # Swift's UnicodeScalar is nil for surrogates; the escape then stays text.
+            if (len(hex_digits) == 4 and all(c in "0123456789abcdefABCDEF" for c in hex_digits)
+                    and not 0xD800 <= int(hex_digits, 16) <= 0xDFFF):
                 out.append(chr(int(hex_digits, 16)))
                 i += 6
                 continue

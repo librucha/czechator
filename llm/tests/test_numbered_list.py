@@ -54,3 +54,9 @@ def test_decode_tolerates_preamble():
 
 def test_decode_resolves_unicode_escape():
     assert decode("1. a\\u00e1b", 1) == ["aáb"]
+
+
+def test_decode_keeps_lone_surrogate_escape_literal_like_swift():
+    # Swift's UnicodeScalar(0xD83D) is nil, so the escape stays as text;
+    # chr() would produce a lone surrogate that cannot be written as UTF-8.
+    assert decode("1. a\\ud83db", 1) == ["a\\ud83db"]

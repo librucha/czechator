@@ -11,7 +11,7 @@ def test_load_sweep():
     sweep = load_sweep(SWEEP)
     assert [c.name for c in sweep.candidates] == ["qwen35-0.8b", "qwen35-2b", "gemma4-e2b", "gemma3-270m"]
     assert candidate(sweep, "gemma3-270m").lr == 2e-4
-    assert sweep.train.max_seq_length == 2048
+    assert sweep.train.max_seq_length == 2560
 
 
 def test_mlx_config_one_epoch_and_lora_scale():
@@ -36,3 +36,52 @@ def test_run_dir_and_manifest(tmp_path):
     write_manifest(run, {"iters": 1}, tmp_path / "missing-manifest.json")
     m = json.loads((run / "manifest.json").read_text())
     assert m["mlx"] == {"iters": 1} and len(m["git_sha"]) == 40 and m["dataset_manifest"] is None
+
+
+def test_max_seq_length_has_margin_over_a_full_technical_batch():
+    # A 1515-char technical batch under the drop-in prompt measured 2049
+    # Qwen3.5 tokens; 2048 would truncate the answer silently.
+    assert load_sweep(SWEEP).train.max_seq_length >= 2560
+
+
+def _one_record_set(tmp_path):
+    from czllm.format.contracts import chat_record, systems
+    from czllm.jsonl import write_jsonl
+
+    record = chat_record(systems()["short"], ["kun"], ["kůň"])
+    write_jsonl(tmp_path / "train.jsonl", [record])
+    write_jsonl(tmp_path / "valid.jsonl", [record])
+
+
+def test_preflight_rejects_records_over_max_seq_length(tmp_path):
+    import pytest
+
+    from czllm.format.validate import DatasetError
+    from czllm.train.run import preflight
+
+    _one_record_set(tmp_path)
+    count = lambda messages: sum(len(m["content"]) for m in messages)
+    preflight(tmp_path, count, limit=1000, eval_keys=set())
+    with pytest.raises(DatasetError, match="tokens"):
+        preflight(tmp_path, count, limit=10, eval_keys=set())
+
+
+def test_token_count_handles_batch_encoding_and_plain_lists():
+    from czllm.train.run import token_count
+
+    # transformers >= 4.5x returns a BatchEncoding (a dict) from
+    # apply_chat_template(tokenize=True); len() of it is the number of keys.
+    assert token_count({"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1]}) == 3
+    assert token_count([1, 2, 3, 4]) == 4
+
+
+def test_preflight_rejects_eval_leak(tmp_path):
+    import pytest
+
+    from czllm.format.validate import DatasetError
+    from czllm.text import fold_key
+    from czllm.train.run import preflight
+
+    _one_record_set(tmp_path)
+    with pytest.raises(DatasetError, match="eval"):
+        preflight(tmp_path, lambda m: 1, limit=1000, eval_keys={fold_key("kůň")})
