@@ -57,6 +57,16 @@ def test_accept_message():
     assert accept_message("hybrid", "   ", none_suspicious) == "empty"
 
 
+def test_client_sends_the_workspace_header_when_configured(monkeypatch):
+    from czllm.synth.batch import client
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setenv("ANTHROPIC_WORKSPACE_ID", "wrkspc_123")
+    assert client().default_headers["anthropic-workspace-id"] == "wrkspc_123"
+    monkeypatch.delenv("ANTHROPIC_WORKSPACE_ID")
+    assert "anthropic-workspace-id" not in client().default_headers
+
+
 def test_default_plan_has_headroom_over_the_build_mix():
     from czllm.format.build import BuildConfig
 

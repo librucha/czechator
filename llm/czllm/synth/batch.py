@@ -96,6 +96,18 @@ def accept_message(kind: str, text: str, suspicious: Callable[[list[str]], list[
     return None
 
 
+def client():
+    """An organisation-wide API key must name its workspace on every request;
+    ANTHROPIC_WORKSPACE_ID supplies it. A workspace-scoped key needs nothing."""
+    import os
+
+    import anthropic
+
+    workspace = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+    headers = {"anthropic-workspace-id": workspace} if workspace else None
+    return anthropic.Anthropic(default_headers=headers)
+
+
 def submit(args) -> int:
     plan = SynthPlan(model=args.model)
     requests = build_requests(plan)
@@ -107,9 +119,8 @@ def submit(args) -> int:
     if not args.yes:
         print("Dry run. Re-run with --yes to submit.")
         return 0
-    import anthropic
 
-    batch = anthropic.Anthropic().messages.batches.create(requests=requests)
+    batch = client().messages.batches.create(requests=requests)
     STATE.parent.mkdir(parents=True, exist_ok=True)
     STATE.write_text(json.dumps({"id": batch.id, "model": plan.model}), encoding="utf-8")
     print(f"submitted {batch.id} -> {STATE}")
@@ -117,11 +128,10 @@ def submit(args) -> int:
 
 
 def collect(args) -> int:
-    import anthropic
 
-    client = anthropic.Anthropic()
+    api = client()
     batch_id = json.loads(STATE.read_text(encoding="utf-8"))["id"]
-    while (batch := client.messages.batches.retrieve(batch_id)).processing_status != "ended":
+    while (batch := api.messages.batches.retrieve(batch_id)).processing_status != "ended":
         print(f"{batch.processing_status}: {batch.request_counts.processing} processing")
         time.sleep(60)
 
@@ -130,7 +140,7 @@ def collect(args) -> int:
     stats: Counter[str] = Counter()
     seen: set[str] = set()
     out: dict[str, list[dict]] = {"train": [], "eval": []}
-    for entry in client.messages.batches.results(batch_id):
+    for entry in api.messages.batches.results(batch_id):
         messages = parse_result(entry)
         if messages is None:
             stats["request-failed"] += 1
