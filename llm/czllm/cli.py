@@ -9,6 +9,7 @@ COMMAND_MODULES = [
     "czllm.synth.batch",
     "czllm.eval.sets",
     "czllm.format.build",
+    "czllm.eval.metrics",
 ]
 
 
