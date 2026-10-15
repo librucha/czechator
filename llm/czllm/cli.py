@@ -13,6 +13,7 @@ COMMAND_MODULES = [
     "czllm.eval.harness",
     "czllm.eval.report",
     "czllm.train.run",
+    "czllm.export.gguf",
 ]
 
 
