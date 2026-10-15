@@ -14,6 +14,7 @@ COMMAND_MODULES = [
     "czllm.eval.report",
     "czllm.train.run",
     "czllm.export.gguf",
+    "czllm.gate",
 ]
 
 
