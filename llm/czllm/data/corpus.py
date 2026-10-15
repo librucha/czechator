@@ -5,7 +5,8 @@ is filtered per document and per line."""
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
-from czllm.jsonl import write_jsonl
+from czllm.jsonl import read_jsonl, write_jsonl
+from czllm.synth.spell import Checker, Hunspell, suspicious_words
 from czllm.text import WORD_RE, diacritic_word_ratio, fold_key, normalize, words
 
 MIN_DOC_RATIO = 0.25
@@ -49,6 +50,20 @@ def collect(docs: Iterable[tuple[str, str]], source: str, limit: int) -> Iterato
             yield {"source": source, "doc_id": str(doc_id), "lines": lines}
 
 
+def spell_filter(docs: list[dict], checker: Checker) -> list[dict]:
+    """Drops lines containing a word hunspell rejects while suggesting the same
+    word with other diacritics — a line typed without (some) accents would be
+    a wrong target. One hunspell call over the unique words of all docs."""
+    vocabulary = sorted({w for d in docs for line in d["lines"] for w in WORD_RE.findall(line)})
+    bad = set(suspicious_words(vocabulary, checker))
+    out = []
+    for doc in docs:
+        lines = [l for l in doc["lines"] if not bad.intersection(WORD_RE.findall(l))]
+        if lines:
+            out.append({**doc, "lines": lines})
+    return out
+
+
 def fineweb_docs(min_language_score: float = 0.9) -> Iterator[tuple[str, str]]:
     from datasets import load_dataset
 
@@ -68,12 +83,30 @@ def wiki_docs() -> Iterator[tuple[str, str]]:
 
 def run(args) -> int:
     docs = fineweb_docs() if args.source == "fineweb" else wiki_docs()
-    n = write_jsonl(args.out, collect(docs, args.source, args.docs))
+    try:
+        n = write_jsonl(args.out, collect(docs, args.source, args.docs))
+    finally:
+        # Stopping a streaming dataset early leaves its iterator suspended;
+        # closing it lets the reader threads finish so the process can exit.
+        docs.close()
     print(f"{n} documents -> {args.out}")
     return 0
 
 
+def run_spellfilter(args) -> int:
+    docs = list(read_jsonl(args.path))
+    before = sum(len(d["lines"]) for d in docs)
+    kept = spell_filter(docs, Hunspell())
+    after = sum(len(d["lines"]) for d in kept)
+    write_jsonl(args.path, kept)
+    print(f"{args.path}: {after}/{before} lines, {len(kept)}/{len(docs)} documents kept")
+    return 0
+
+
 def register(sub) -> None:
+    s = sub.add_parser("spellfilter", help="drop corpus lines whose diacritics hunspell disputes (in place)")
+    s.add_argument("path", type=Path)
+    s.set_defaults(func=run_spellfilter)
     p = sub.add_parser("corpus", help="download and filter a Czech corpus")
     p.add_argument("--source", choices=["fineweb", "wiki"], required=True)
     p.add_argument("--docs", type=int, default=20_000, help="documents to keep")

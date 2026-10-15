@@ -20,6 +20,23 @@ def test_document_lines_filters_length_and_unaccented_lines():
     assert document_lines(text) == [ACCENTED, "Na shledanou v pondělí, Petr"]
 
 
+def test_spell_filter_drops_lines_with_disputed_diacritics_and_empty_docs():
+    from czllm.data.corpus import spell_filter
+
+    docs = [
+        {"source": "s", "doc_id": "a", "lines": ["plavky male holky – album", "Včera jsem koupil nový počítač."]},
+        {"source": "s", "doc_id": "b", "lines": ["Mame radi kafe."]},
+    ]
+
+    class Checker:
+        def suggestions(self, words):
+            table = {"male": ["malé"], "Mame": ["Máme"], "radi": ["rádi"]}
+            return {w: table.get(w) for w in words}
+
+    out = spell_filter(docs, Checker())
+    assert out == [{"source": "s", "doc_id": "a", "lines": ["Včera jsem koupil nový počítač."]}]
+
+
 def test_collect_dedups_by_fold_key_and_respects_limit():
     docs = [
         ("d1", ACCENTED + "\n" + ACCENTED.lower()),
