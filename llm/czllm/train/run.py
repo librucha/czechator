@@ -35,11 +35,12 @@ class Candidate:
 class TrainSettings:
     rank: int = 16
     alpha: int = 32
-    batch_size: int = 16
+    batch_size: int = 4
+    grad_accumulation_steps: int = 4
     epochs: int = 1
     max_seq_length: int = 2560
-    steps_per_eval: int = 200
-    save_every: int = 200
+    steps_per_eval: int = 800
+    save_every: int = 800
     seed: int = 0
 
 
@@ -77,6 +78,7 @@ def mlx_config(c: Candidate, s: TrainSettings, data_dir: Path, adapter_dir: Path
         "mask_prompt": True,
         "num_layers": -1,
         "batch_size": batch,
+        "grad_accumulation_steps": s.grad_accumulation_steps,
         "iters": iters or math.ceil(n_train * s.epochs / batch),
         "learning_rate": c.lr,
         "steps_per_eval": s.steps_per_eval,

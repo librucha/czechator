@@ -20,7 +20,11 @@ def test_mlx_config_one_epoch_and_lora_scale():
     sweep = load_sweep(SWEEP)
     c = candidate(sweep, "gemma4-e2b")
     cfg = mlx_config(c, sweep.train, Path("d"), Path("a"), n_train=40_000)
-    assert cfg["iters"] == 2500
+    # Effective batch 16 as micro-batches of 4: with Gemma's 262k vocabulary
+    # a batch of 16 x 2560 tokens needs ~43 GB for fp32 logits alone (OOM).
+    assert cfg["batch_size"] == 4 and cfg["grad_accumulation_steps"] == 4
+    assert cfg["iters"] == 10_000   # mlx-lm counts micro-batches
+    assert cfg["steps_per_eval"] == 800 and cfg["save_every"] == 800
     assert cfg["lora_parameters"] == {"rank": 16, "scale": 2.0, "dropout": 0.0}
     assert cfg["mask_prompt"] is True and cfg["fine_tune_type"] == "lora" and cfg["num_layers"] == -1
     assert cfg["model"] == "google/gemma-4-E2B-it" and cfg["learning_rate"] == 1e-4

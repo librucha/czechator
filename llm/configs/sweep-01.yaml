@@ -14,9 +14,10 @@ candidates:
 train:
   rank: 16
   alpha: 32
-  batch_size: 16
+  batch_size: 4
+  grad_accumulation_steps: 4
   epochs: 1
   max_seq_length: 2560
-  steps_per_eval: 200
-  save_every: 200
+  steps_per_eval: 800
+  save_every: 800
   seed: 0
