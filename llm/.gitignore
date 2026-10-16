@@ -1,4 +1,5 @@
 .env
+docs/jak-to-funguje.md
 .venv/
 .cache/
 runs/
