@@ -102,6 +102,8 @@ def build(units_by_source: dict[str, list[list[str]]], cfg: BuildConfig, rng: ra
     records = []
     for source, unit in chosen:
         items = join_newlines(unit, rng, cfg.join_newline)
+        if sum(map(len, items)) > MAX_BATCH_CHARS:   # each join adds a "\n"
+            items = unit
         inputs, targets, mode = augment(items, rng, cfg.augment)
         contract = "drop_in" if rng.random() < cfg.drop_in_share else "short"
         records.append(chat_record(contracts[contract], inputs, targets))
@@ -116,8 +118,14 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def config_from_args(args) -> BuildConfig:
+    """Only the size is adjustable: the mix is the spec's, and a short source
+    is answered by fewer examples overall, not by a different mix."""
+    return BuildConfig(total=args.total) if args.total else BuildConfig()
+
+
 def run_build(args) -> int:
-    cfg = BuildConfig()
+    cfg = config_from_args(args)
     rng = random.Random(0)
     require_eval_sets()
     excluded = eval_keys(EVAL_PATHS.values())
@@ -161,6 +169,7 @@ def run_validate(args) -> int:
 def register(sub) -> None:
     b = sub.add_parser("build", help="assemble data/sets/<id> and validate it")
     b.add_argument("--id", required=True)
+    b.add_argument("--total", type=int, help="training examples (default 40000); the mix stays fixed")
     b.set_defaults(func=run_build)
     v = sub.add_parser("validate", help="validate data/sets/<id>")
     v.add_argument("--id", required=True)

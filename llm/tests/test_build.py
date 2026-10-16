@@ -54,6 +54,28 @@ def test_build_mix_contracts_and_validity():
         validate_record(record, known, set())
 
 
+def test_build_cli_takes_the_total_and_keeps_the_mix():
+    import argparse
+
+    from czllm.format.build import config_from_args, register
+
+    parser = argparse.ArgumentParser()
+    register(parser.add_subparsers())
+    args = parser.parse_args(["build", "--id", "s01", "--total", "38875"])
+    cfg = config_from_args(args)
+    assert cfg.total == 38875 and cfg.valid == 1000 and cfg.mix == BuildConfig().mix
+    assert config_from_args(parser.parse_args(["build", "--id", "s01"])).total == 40_000
+
+
+def test_joining_never_pushes_a_full_unit_over_the_batch_limit():
+    from dataclasses import replace
+
+    full = [["a" * 750, "b" * 750]]   # exactly 1500 chars; a join adds "\n"
+    cfg = replace(BuildConfig(total=1, valid=0, mix={"fineweb": 1.0}), join_newline=1.0)
+    train, _, _ = build({"fineweb": full}, cfg, random.Random(0))
+    validate_record(train[0], set(systems().values()), set())
+
+
 def test_build_refuses_when_a_source_is_short():
     cfg = BuildConfig(total=100, valid=0, mix={"fineweb": 1.0})
     with pytest.raises(InsufficientData, match="fineweb"):
