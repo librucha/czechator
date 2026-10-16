@@ -1,0 +1,301 @@
+id	verdict	text
+hybrid-0000		Zápis ze schůzky 12. 3.: bitrate na 1080p padá pod 4 Mb/s, Petr to prověří.	ok
+hybrid-0001		buffering na Androidu fixnutý, mergnu to večer	ok
+hybrid-0003		Dobrý den, na základě včerejší porady navrhujeme zavést feature flag `hevc_enabled`, abychom mohli kodek HEVC zapínat postupně. Prosíme o schválení do středy.	ok
+hybrid-0007		Musíme refaktorovat `QualitySelector.ts`, je tam moc duplicit.	ok
+hybrid-0008		Z retra: logy z playeru nejsou korelované se session ID, takže nevíme, kde přesně dochází k výpadkům.\nÚkol: Lukáš přidá `session_id` do všech eventů.\nTermín: konec sprintu.	ok
+hybrid-0009		deploynutý na produkci, sledujte prosím error rate	ok
+hybrid-0010		Vážení kolegové, dle měření z minulého týdne činí průměrný podíl rebufferingu 2,3 %. Cílová hodnota je pod 1 %. Podrobnosti najdete na https://wiki.firma.cz/video/qoe.	fix
+hybrid-0011		Ok, commitnu to po obědě.	ok
+hybrid-0012		Akce: otestovat DRM na Safari, zodpovídá Eva.	ok
+hybrid-0013		Na Smart TV se pořád zasekává přepínání kvality. Zkusil jsem snížit buffer na 10 s, ale nepomohlo to. Navrhuji udělat A/B test s jiným ABR algoritmem.	ok
+hybrid-0014		hotfix je mergnutý do `release/2.14`, build běží	ok
+hybrid-0015		Rozhodnutí: segmenty zkrátíme ze 6 na 4 sekundy kvůli nižší latenci u live streamů.	ok
+hybrid-0016		Kdo má na starosti monitoring VMAF skóre? Po posledním transcodingu vyšlo jen 78.	ok
+hybrid-0017		Zápis z porady týmu Video Platform:\nProbrali jsme stížnosti zákazníků na rozmazaný obraz při sportovních přenosech. Příčinou je příliš nízký bitrate u profilu `sport_hd`.\nÚkoly: Ondřej navýší bitrate na 8 Mb/s, Klára ověří náklady na CDN a výsledek prezentujeme ve čtvrtek.	ok
+hybrid-0018		fixnul jsem ten memory leak v playeru, prosím o approve	ok
+hybrid-0019		Přidán endpoint `/v1/predict` pro inferenci modelu	ok
+hybrid-0020		Refaktorovat načítání vah modelu	ok
+hybrid-0021		Zvýšení batch size na 64 pro GPU inferenci\n\nPři testech na stagingu se latence p99 snížila z 180 ms na 95 ms. Paměť GPU zůstává pod 70 %.	ok
+hybrid-0023		Nasazení modelu `fraud-detector-v3` za feature flag `enable_fraud_v3`	ok
+hybrid-0024		Oprava chyby při deserializaci tensorů z ONNX	ok
+hybrid-0025		Přidat health check pro Triton Inference Server\n\nKubernetes teď správně restartuje pody, když model neodpovídá déle než 30 sekund. Konfigurace je v `deploy/k8s/triton.yaml`.	ok
+hybrid-0027		Úprava Dockerfile: menší image díky multi-stage buildu	ok
+hybrid-0030		Cachování embeddingů v Redisu	ok
+hybrid-0031		rollbacknul jsem verzi 2.4.1, model vracel samé nuly	ok
+hybrid-0032		Přidání kvantizace INT8 pro rychlejší inferenci na CPU	ok
+hybrid-0033		Logování vstupů a výstupů modelu pro monitoring driftu\n\nData se ukládají do bucketu `s3://ml-logs/predictions` a zpracovávají se každou hodinu.	ok
+hybrid-0034		Zavedení rate limitingu na 500 požadavků za sekundu	ok
+hybrid-0035		commitnul jsem jen config, zbytek dodělám zítra	ok
+hybrid-0037		Podpora pro warmup modelu při startu kontejneru\n\nPrvní požadavky po deployi už netrvají 4 sekundy. Warmup lze vypnout proměnnou `SKIP_WARMUP=1`.	ok
+hybrid-0039		Vážení kolegové, informujeme vás, že od 9:45 je nedostupné rozhraní pro příjem zboží. Na řešení incidentu `INC-4821` intenzivně pracujeme a další informace zašleme do 30 minut.	ok
+hybrid-0040		kdo mergnul ten pull request s novým výpočtem rezervací? čísla na skladě Ostrava nesedí o 312 kusů	ok
+hybrid-0041		Vypnul jsem feature flag `reservation_v2`, reservace by se měly počítat zase postaru.	ok
+hybrid-0042		Fixnul jsem race condition v `StockReservationService.java`, commitnu to a pushnu do větve `hotfix/stock-race`. Můžeš mi to prosím rychle zreviewovat?	ok
+hybrid-0043		Shrnutí pro ranní směnu: fronta `stock-events` v RabbitMQ měla v peaku přes 48 000 zpráv. Přidal jsem dva další consumery, teď se to postupně vyprazdňuje tempem zhruba 600 zpráv za minutu.\nPokud by fronta znovu rostla, runbook je v `docs/runbooks/stock-events.md`.\nAlerty jsem nechal zapnuté, nic neumlčoval.	ok
+hybrid-0044		Je ten hotfix už deploynutý i na sklad v Plzni?	ok
+hybrid-0045		Ještě ne, pipeline visí na integračních testech.	ok
+hybrid-0046		čárové kódy ze skenerů chodí duplicitně, asi retry logika v API gateway	ok
+hybrid-0047		Dobrý den, prosím o schválení nouzového změnového požadavku `CHG-1093`. Jedná se o úpravu indexu na tabulce `inventory_movements`, která sníží dobu dotazů z 12 sekund na méně než 200 ms. Změna je otestována na stagingu.	ok
+hybrid-0048		Schváleno, pokračujte.	ok
+hybrid-0049		Ten migrační skript bych radši refaktoroval, než ho pustíme znovu. Běží po dávkách 10 000 řádků a lockuje celou tabulku.	ok
+hybrid-0050		Postmortem sepíšu zítra dopoledne, zatím díky všem za pomoc v noci.	ok
+hybrid-0051		Inventura v Kolíně je zablokovaná, dokud nesyncneme stavy. Odhad?	ok
+hybrid-0052		Odhaduju tak hodinu. Musím ještě reindexnout Elasticsearch a ověřit, že počty souhlasí s exportem `stav_2024-05-14.csv`.	ok
+hybrid-0055		Prosím o doplnění unit testů pro `AdaptiveBitrateController`. Bez nich to nemůžu schválit.	ok
+hybrid-0056		Vypadá to dobře, mergnu po obědě.	ok
+hybrid-0057		V souboru `player/abr.ts` se při přepnutí rendition nevolá `flushBuffer()`. Na stagingu jsem viděl, že obraz na dvě sekundy zamrzne a pak naskočí s artefakty.\nZkus to prosím fixnout ještě před releasem.	ok
+hybrid-0059		Dovoluji si upozornit, že navržená změna ladderu kódování (1080p na 4,5 Mb/s místo 6 Mb/s) může u sportovního obsahu výrazně zhoršit kvalitu. Doporučuji nejprve provést A/B test na vzorku alespoň 5 % uživatelů.	ok
+hybrid-0061		Ten throughput estimator počítá s průměrem, ale lepší by byl EWMA. Jinak bude ABR na jeden pomalý segment reagovat moc agresivně.	ok
+hybrid-0063		Metrika `startup_time_ms` se posílá dvakrát, jednou v `onLoaded` a podruhé v `onPlay`. V dashboardu https://grafana.internal/d/video-qoe pak vychází medián o 40 % nižší, než ve skutečnosti je.\nNavrhuji ponechat jen volání v `onPlay`.\nDíky!	ok
+hybrid-0064		Refaktorovat bych to nechal na samostatný pull request, tohle je už tak dost velké.	ok
+hybrid-0066		Manifest `master.m3u8` teď obsahuje i variantu 2160p, ale CDN ji ještě nemá nacachovanou. Do deploye na produkci bych ji vyřadil.	ok
+hybrid-0067		pushnul jsem opravu timeoutu pro načítání segmentů, mrkni na to prosím.	ok
+hybrid-0071		Ahoj, model `fraud-detector-v3` je deploynutý na stagingu, můžeš se mrknout na latenci?	ok
+hybrid-0072		díky, mergnu to odpoledne.	ok
+hybrid-0073		Endpoint `/v1/predict` vrací 503, nevíš proč?	ok
+hybrid-0074		pushnul jsem fix na batch, p99 kleslo z 420 ms na 180 ms. Hoď na to oko v pull requestu #312.	fix
+hybrid-0075		Ahoj Petro,\nmohla bys prosím zapnout feature flag `use_onnx_runtime` jen pro 5 % provozu? Chci porovnat výsledky s PyTorch verzí, než to rolloutneme všem.\nDíky!	ok
+hybrid-0076		Schváleno, můžeš commitnout.	ok
+hybrid-0077		Vážení kolegové,\nv noci došlo k výpadku inference služby na produkci, který trval přibližně 37 minut. Příčinou byl nedostatek GPU paměti po nasazení většího modelu.\nPostmortem najdete na https://wiki.firma.cz/incidenty/2024-11-03. Prosím o prostudování do čtvrtka.	ok
+hybrid-0078		hele, ten Dockerfile by chtěl refaktorovat, image má 6 GB.	ok
+hybrid-0079		Fixnul jsem to, cache se teď invaliduje při každém novém checkpointu.	ok
+hybrid-0080		Můžeme si zítra v 10:00 projít autoscaling pravidla v Kubernetes? Současné nastavení `minReplicas: 2` nestačí na ranní špičku.	ok
+hybrid-0083		nevíte někdo, kde je uložený model registry token? V `.env.example` chybí.	ok
+hybrid-0085		Shadow deployment nového ranking modelu běží od včerejška. Zatím se predikce shodují v 97,4 % případů, zbytek ještě analyzuji.	ok
+hybrid-0086		Prosím o review, je to jen pár řádků v `serve.py`.	ok
+hybrid-0087		Ahoj,\nmrkl jsem na ten drift alert. Distribuce vstupních featur se posunula hlavně u `customer_age`, asi kvůli nové registraci.\nNavrhuji model přetrénovat a nasadit přes canary release, ať to nerozbijeme všem najednou.	ok
+hybrid-0089		fixnul jsem pád přehrávače při změně bitrate na 1080p	ok
+hybrid-0090		Přidán adaptivní bitrate pro HLS streamy	ok
+hybrid-0091		Refaktorovat `QualitySelector` a odstranit duplicitní logiku	ok
+hybrid-0094		WIP: nový ABR algoritmus	ok
+hybrid-0095		Zavedení feature flagu `enable_av1_codec` pro postupné nasazení kodeku AV1	ok
+hybrid-0096		Oprava nesprávného výpočtu šířky pásma v `bandwidth_estimator.ts`	ok
+hybrid-0097		mergnul jsem to do main, kdyžtak to revertněte	fix
+hybrid-0099		Logování dropnutých framů	x
+hybrid-0100		tohle by mělo konečně spravit ty artefakty u 4K streamu, otestováno na třech zařízeních	ok
+hybrid-0102		Pull request: podpora DASH manifestů s více audio stopami	ok
+hybrid-0104		Odstranění zastaralého Flash fallbacku	ok
+hybrid-0105		commitnu zatím jen testy pro `PlaybackQualityService`, implementace přijde zítra	ok
+hybrid-0106		Úprava výchozí kvality na mobilních sítích\n\nUživatelé na 4G nyní začínají na 480p místo 720p, čímž se zkrátí doba do prvního snímku přibližně o 40 %.\n\nZměna je schovaná za feature flagem `mobile_start_quality`.	ok
+hybrid-0107		Tady chybí timeout na inference request.	ok
+hybrid-0110		Dobrý den,\nprosím o doplnění validace vstupního schématu v souboru `serving/api/schemas.py`. V současné podobě endpoint `/v1/predict` přijme libovolný JSON a chyba se projeví až uvnitř modelu.\nDěkuji.	ok
+hybrid-0111		fixnul jsem ten memory leak v tokenizeru, pushnu to za chvíli.	ok
+hybrid-0112		Nová verze modelu by měla jít za feature flag `use_ranker_v3`, ať můžeme rychle udělat rollback bez redeploye.	ok
+hybrid-0113		Metriky p95 a p99 latence chybí v Prometheus exportu. Bez nich nepoznáme, jestli canary deployment degraduje.	ok
+hybrid-0114		Tohle by šlo refaktorovat do samostatné třídy `Preprocessor`, teď je to rozházené ve třech handlerech.	ok
+hybrid-0117		Health check vrací 200, i když model ještě není načtený. Kubernetes pak pošle traffic na pod, který neumí odpovědět. Rozdělte prosím liveness a readiness probe.	ok
+hybrid-0119		Cachování embeddingů v Redisu je fajn nápad, ale TTL 7 dní je zbytečně dlouhé. Při retrainu budeme servírovat zastaralé vektory.\nNavrhuji TTL svázat s verzí modelu, třeba klíč `emb:{model_version}:{item_id}`.\nJinak dobrá práce.	ok
+hybrid-0120		Chybí unit testy.	ok
+hybrid-0122		dynamic batching v Triton configu máš vypnutý, zapni `max_queue_delay_microseconds: 5000` a změř to znovu.	ok
+hybrid-0123		Tento pull request mění formát odpovědi API, což je breaking change pro klienty. Prosím o zvýšení verze na `/v2` a aktualizaci dokumentace na https://wiki.firma.cz/ml/serving-api.	ok
+hybrid-0124		Logování celého vstupního payloadu může obsahovat osobní údaje. Maskuj to, nebo loguj jen hash.	ok
+hybrid-0126		mergnul jsem to do `develop`, můžete testovat na stagingu	ok
+hybrid-0127		Dobrý den, prosím o upřesnění požadavku na inventuru. Má systém povolit souběžné počítání jedné lokace dvěma skladníky, nebo se lokace má při zahájení zamknout?	ok
+hybrid-0128		Zamknout. Jinak budeme řešit konflikty a to nechceme. Ideálně s timeoutem 30 minut.	ok
+hybrid-0130		Chtěla bych otevřít téma barev stavů. Červená pro „chybí“ a oranžová pro „nízká zásoba“ jsou na tabletech ve skladu pod zářivkami skoro nerozlišitelné.\nNavrhuji přidat ikony a změnit oranžovou na `#F5A623`.\nUdělám k tomu rychlý usability test se dvěma skladníky z Brna.	ok
+hybrid-0132		fixnul jsem bug s duplicitním odečtem při vyskladnění, byl to race condition v `ReservationService.cs`	ok
+hybrid-0133		Super, kdy to bude deploynuté na produkci?	ok
+hybrid-0135		Kolegové, shrnutí ze schůzky se zákazníkem:\n1. Potřebují export pohybů do CSV, nejpozději do konce měsíce.\n2. Chtějí vidět expiraci šarží přímo v seznamu položek.\n3. Mobilní aplikace pro vychystávání má mít offline režim, to je ale až na Q3.	ok
+hybrid-0136		offline režim bude dost práce, sync konfliktů nebude triviální	ok
+hybrid-0138		Koukl jsem, mám tam dva komentáře k migraci `2024_05_add_batch_expiry.sql`, jinak schvaluju.	ok
+hybrid-0139		Navrhuji, aby se při přesunu palety mezi regály zobrazilo potvrzovací okno jen tehdy, pokud cílová lokace překročí 90 % kapacity. Jinak to skladníky zbytečně zdržuje.	ok
+hybrid-0140		Dává smysl. Ten limit bych ale měl v configu, ne natvrdo v kódu.	ok
+hybrid-0141		commitnu to ještě dneska a pak jdu domů	ok
+hybrid-0142		Prosím, nezapomeňte do pátku aktualizovat odhady v Jiře, plánujeme sprint 14.	ok
+hybrid-0143		ABR algoritmus přepíná moc agresivně\nPři kolísání bandwidthu mezi 3 a 5 Mbps přeskakuje player každých pár sekund mezi 720p a 1080p. Uživatelé si stěžují na blikání kvality. Navrhuju přidat hysterezi do `AbrController.selectBitrate()`.	ok
+hybrid-0144		fixnout výpadky zvuku na Safari	ok
+hybrid-0145		Zvýšit počet renditions v HLS manifestu	x
+hybrid-0147		Metrika rebuffering ratio v Grafaně\nPotřebujeme dashboard, který bude ukazovat rebuffering ratio po regionech a CDN providerech. Data už sbíráme přes `qoe-collector`, chybí jen vizualizace.\nCíl: odhalit, který edge server dělá problémy.	ok
+hybrid-0148		pushnul jsem fix pro desync titulků, prosím o review v pull requestu #482	ok
+hybrid-0149		Refaktorovat logiku segment prefetchingu\nTřída `SegmentLoader` má přes 900 řádků a míchá síťovou vrstvu s cachováním. Rozdělíme ji na menší moduly a doplníme unit testy.	ok
+hybrid-0150		Artefakty v obraze při přechodu mezi scénami\nU obsahu s rychlým pohybem (sport) se objevují bloky a macroblocking, hlavně při bitrate pod 3 Mbps. Zkusit upravit nastavení GOP a keyframe intervalu v transcoderu.	ok
+hybrid-0151		DRM licence se nenačte při přepnutí kvality	ok
+hybrid-0152		player na https://stage.video.example.cz/live padá po 20 minutách, v konzoli je `MediaError code 3`. Asi memory leak v bufferu.	ok
+hybrid-0154		Deploynutý hotfix nefunguje na iOS 17	ok
+hybrid-0155		Commitnout nové encoding profily do repa\nProfily pro 480p a 720p jsou otestované, stačí je commitnout do `profiles/v2/` a updatnout CI pipeline.	ok
+hybrid-0156		Snížit latenci live streamu pod 5 sekund pomocí LL-HLS	ok
+hybrid-0157		čekám na merge, pak to otestuju na stagingu s throttlingem na 3G	ok
+hybrid-0158		Model `fraud-detector-v3` po deployi na staging vrací samé nuly.\nZkoušel jsem rollbacknout na `v2` a tam to funguje, takže chyba bude v novém preprocessingu.	ok
+hybrid-0159		přidat health check do `serving/app.py`	ok
+hybrid-0160		Navrhuji refaktorovat načítání modelů v `model_loader.py`, aby se váhy nestahovaly z S3 při každém restartu podu. Aktuálně trvá cold start přibližně 45 sekund, což je pro autoscaling nepřijatelné.\nŘešením by mohl být lokální cache na persistent volume.	ok
+hybrid-0161		někdo mergnul pull request bez review a teď padá CI na testech `test_batch_predict`. Prosím o rychlý fix.	ok
+hybrid-0162		Zavést feature flag pro A/B testování modelu	ok
+hybrid-0163		Monitoring driftu vstupních dat	ok
+hybrid-0165		fixnul jsem tokenizer, ale ještě to musím pushnout, zítra ráno	ok
+hybrid-0166		Deploynutý model `recsys-2.1.4` nemá v registry správné metadata.\nV MLflow chybí tag `stage=production`, takže ho canary pipeline ignoruje.	ok
+hybrid-0167		Je potřeba commitnout nový Dockerfile s CUDA 12.1 a otestovat build na runneru `gpu-runner-02`.	ok
+hybrid-0168		Shadow deployment nového ranking modelu	ok
+hybrid-0169		Cílem úkolu je umožnit postupné nasazování modelů pomocí canary release. Nejprve bude 5 % provozu směrováno na novou verzi, poté 25 % a nakonec 100 %.\nRouting zajistí Istio podle konfigurace v `k8s/virtualservice.yaml`.\nPokud chybovost překročí 2 %, proběhne automatický rollback.	ok
+hybrid-0170		hele, ten endpoint `/v1/predict` vrací 502 jen občas, asi load balancer?	ok
+hybrid-0171		Odstranit zastaralé verze modelů z bucketu `ml-artifacts` starší než 90 dní.	ok
+hybrid-0172		Dokumentace REST API pro scoring službu	ok
+hybrid-0173		Kdo má na starosti `InventoryService`? Po posledním deployi hlásí záporné stavy u SKU `WH-2041`.	ok
+hybrid-0174		pushnu fix na staging do půl hodiny, pak to prosím otestujte.	ok
+hybrid-0176		Musíme refaktorovat výpočet rezervací, v `reservation_calc.py` je to už nečitelné.	ok
+hybrid-0177		fixnul jsem ten bug s duplicitními příjemkami, byla tam race condition při zápisu do DB.	ok
+hybrid-0178		Inventura ve skladu Brno proběhla, rozdíl 37 kusů.	ok
+hybrid-0179		Je nová verze skeneru deploynutá i na produkci, nebo zatím jen na stagingu?	ok
+hybrid-0181		zapomněl jsem commitnout migraci, sorry, už je tam.	ok
+hybrid-0182		Vážení kolegové,\nod pondělí 14. 10. bude import dat z ERP probíhat každých 15 minut místo jednou za hodinu.\nPokud byste zaznamenali zpomalení, ozvěte se prosím v kanálu #wms-support.	ok
+hybrid-0183		Testy padají na `test_batch_expiry`, asi kvůli časové zóně.	ok
+hybrid-0187		Přidal jsem index na sloupec `warehouse_id`, dotaz na přehled zásob teď trvá 120 ms místo 3 sekund.	ok
+hybrid-0188		Zákazník hlásí, že čtečka čárových kódů nenačte EAN s nulou na začátku.\nPodíval jsem se do parseru a ořezáváme úvodní nuly při převodu na integer.\nOpravu dám do hotfixu `1.8.3`, ale potřebuji, aby to někdo otestoval na reálném zařízení.	ok
+hybrid-0189		standup dnes posouváme na 10:30.	ok
+hybrid-0190		Ahoj, podle dat z dashboardu máme na mobilech 12 % sessions s rebufferingem delším než 3 sekundy. Navrhuju, abychom v příštím sprintu upravili ABR algoritmus a začínali na nižším bitrate.	ok
+hybrid-0192		Pushnul jsem změnu do `player/abr-config.ts`, výchozí rendition je teď 480p. Můžete to prosím otestovat na stagingu?	ok
+hybrid-0194		Ano, rozhodně. Nejdřív to pustíme na 5 % uživatelů a budeme sledovat metriku time to first frame. Pokud se zhorší o víc než 200 ms, rollbackneme.	ok
+hybrid-0196		Vážení kolegové,\nna základě stížností zákazníků z Německa prosím o prioritizaci problému s pixelizací při rychlých scénách. Jde o sportovní přenosy, kde je kvalita klíčová.\nDěkuji za zpětnou vazbu do pátku.	ok
+hybrid-0197		to bude encoder, máme moc nízký bitrate pro 60 fps obsah	ok
+hybrid-0198		Navrhuju přidat pro sportovní kanály samostatný encoding ladder. Pro 1080p60 bych šel na 8 Mbps místo současných 5 Mbps, náklady na CDN vzrostou zhruba o 15 %.	ok
+hybrid-0199		Ten nárůst na CDN musím probrat s financemi, ale dává to smysl.	ok
+hybrid-0200		Mimochodem, v manuálním výběru kvality máme pořád popisky jako "HD" a "SD". Uživatelé tomu moc nerozumí. Co kdybychom tam dali "Automaticky", "Úspora dat" a "Nejvyšší kvalita"?	ok
+hybrid-0201		Líbí se mi to. Číselné rozlišení bych ale nechal v tooltipu pro pokročilé.	ok
+hybrid-0203		Deploynutá verze 3.14.2 je na produkci.	ok
+hybrid-0204		Ok, dám to do backlogu.	ok
+hybrid-0205		Výsledky A/B testu: varianta s nižším startovním bitrate snížila rebuffering o 34 % a TTFF o 410 ms. Watch time vzrostl o 2,1 %.\nDoporučuji feature flag zapnout pro všechny.	ok
+hybrid-0207		Skvělá práce, všem díky!	ok
+hybrid-0209		Dívám se. Vypadá to, že origin `edge-prg-03` vrací 503 na segmenty `.m4s`.	ok
+hybrid-0211		včera večer jsem deploynul nový ABR ladder, možná za to můžu já 😬	ok
+hybrid-0213		Vypínám feature flag `abr_ladder_v2` pro všechny regiony.	ok
+hybrid-0214		Hotovo, flag je off. Metriky na https://grafana.internal/d/video-qoe se během 10 minut vracejí k normálu.	ok
+hybrid-0215		pořád vidím vysoký startup time na Android TV, přes 8 sekund	ok
+hybrid-0216		To je jiná věc, na Androidu máme starý player `exo-2.18`, který neumí low-latency HLS. Založím ticket.	ok
+hybrid-0217		Kdo má teď pager?	ok
+hybrid-0218		Předávka on-callu:\nIncident `INC-4821` je mitigovaný, flag `abr_ladder_v2` zůstává vypnutý. Root cause je chybný bitrate v profilu 1080p.\nOtevřené body: pull request #2291 s opravou čeká na review, Android TV startup time řeší ticket `VID-772`. Prosím sledovat alerty na `edge-prg-03`, ještě občas hází 503.	ok
+hybrid-0219		PR jsem reviewnul, jen doplň test na validaci minimálního bitratu, pak mergni.	ok
+hybrid-0220		Test commitnutý, pushnu to za minutu.	ok
+hybrid-0222		edge-prg-03 restartnutý, cache warmup trvá asi 5 minut	ok
+hybrid-0224		Můžeme flag zase zapnout, nebo počkáme?	ok
+hybrid-0225		Počkejte do zítřka. Nejdřív to nasadíme na 5 % trafficu přes canary a uvidíme, jak se chová rebuffering ratio.\nPokud bude pod 1 %, postupně to rozjedeme na všechny.	ok
+hybrid-0226		jasně, nastavím canary a dám vědět ráno v kanálu #video-oncall	ok
+hybrid-0227		deploynul jsem novou verzi `fraud-model-v3` na staging, mrkněte na to prosím.	ok
+hybrid-0228		Na dnešním standupu jsme probrali problém s cold startem. Model se načítá skoro 40 sekund, což je pro serverless nasazení nepřijatelné.\nNávrh: držet minimálně dvě repliky v teplém stavu a zvážit kvantizaci do INT8.\nOdpovědná osoba: Jakub, termín do konce sprintu.	ok
+hybrid-0229		Kdo mergne ten pull request s batchingem? Visí tam od úterka.	x
+hybrid-0230		Vážení kolegové,\nna základě včerejší schůzky shrnuji dohodnuté body. Nová verze doporučovacího modelu bude zpřístupněna pouze 5 % uživatelů prostřednictvím feature flagu `reco_v2_enabled`.\nPo týdnu vyhodnotíme metriky a rozhodneme o plném rolloutu.	ok
+hybrid-0231		Canary vypadá dobře, pouštím dál.	ok
+hybrid-0232		Musíme refaktorovat preprocessing, teď se počítá dvakrát – jednou v klientovi a jednou na serveru. Ondra si to vezme.	ok
+hybrid-0233		Úkoly z retra: 1) přidat health check endpoint `/v1/health`, 2) nastavit alerting v Grafaně na chybovost nad 2 %, 3) zdokumentovat postup rollbacku.	ok
+hybrid-0238		Můžeš commitnout ten config? Bez něj mi neprojde CI pipeline.	ok
+hybrid-0240		model drift jsme zachytili včas, retraining běží od rána.	ok
+hybrid-0241		Požadavek od produktu: odezva endpointu `/predict` musí být pod 100 ms pro 95 % požadavků. Aktuálně jsme na 140 ms, takže zkusíme ONNX Runtime.	ok
+hybrid-0243		Díky všem za dnešek. Shadow deployment necháme běžet do středy, pak porovnáme výstupy se starým modelem a rozhodneme.	ok
+hybrid-0244		Ahoj Petře,\nmergnul jsem ten pull request s úpravou přepočtu zásob, můžeš to prosím ověřit na stagingu? Týká se to hlavně souboru `stock_calculator.py`.\nDíky, Tomáš	ok
+hybrid-0245		díky, mrknu na to po obědě.	ok
+hybrid-0248		Ahoj, nevíte někdo, proč endpoint `/api/v2/stock/levels` vrací 500? Na produkci to včera fungovalo.	ok
+hybrid-0249		Zapni prosím feature flag `new_picking_flow` jen pro sklad v Brně.	ok
+hybrid-0250		Dobrý den,\nzasílám přehled rozdílů z poslední inventury: celkem 37 položek s odchylkou nad 5 %. Podrobnosti najdete v souboru `inventura_2024_Q3.xlsx` na sdíleném disku.\nProsím o kontrolu do pátku.\nDěkuji, Lucie Marková	ok
+hybrid-0251		Martine, můžeš refaktorovat tu třídu `WarehouseLocation`? Je to už fakt nečitelné a testy padají náhodně.	ok
+hybrid-0252		jasně, ale až po sprintu. Teď řeším ten import z ERP.	ok
+hybrid-0253		Ahoj,\nzkusil jsem commitnout migraci `0042_add_batch_number.sql`, ale CI pipeline mi hlásí konflikt se schématem. Nemáš tam náhodou starší branch?\nDík	ok
+hybrid-0254		Vážení kolegové,\noznamujeme, že ve čtvrtek 14. 11. od 18:00 do 20:00 bude skladový systém nedostupný z důvodu plánované údržby databáze.\nDěkujeme za pochopení.\nIT oddělení	ok
+hybrid-0256		Ahoj Kubo, dashboard na https://sklad.firma.cz/dashboard ukazuje špatný počet palet v hale C. Můžeš se podívat do logů?	ok
+hybrid-0258		Dobrý den, pane Horáku,\npotvrzuji, že rozhraní pro příjem zboží je otestované a připravené k nasazení. Release plánujeme na pondělí.\nS pozdravem\nEva Šimková	ok
+hybrid-0260		Ahoj, přidal jsem do README popis, jak lokálně spustit sync se skladovým serverem. Kdyby něco nešlo, ozvi se.	ok
+hybrid-0261		Ahoj všem,\nod příštího týdne přecházíme s ticketama na nový board v Jiře. Staré úkoly k inventárnímu modulu jsem už přesunul.\nPokud vám něco chybí, napište mi.\nOndřej	ok
+hybrid-0262		Ahoj, můžeme dnes probrat, jak bude vypadat UI pro výběr verze modelu? Designérka připravila dvě varianty ve Figmě.	ok
+hybrid-0263		Z pohledu produktu potřebujeme, aby uživatel viděl, která verze modelu právě běží v produkci. Ideálně i s datem nasazení a odkazem na changelog.\nNavrhuji to přidat do detailu endpointu.	ok
+hybrid-0264		můžu to schovat za feature flag `show_model_version`, ať to nejdřív otestujeme interně?	ok
+hybrid-0266		Vážení, rád bych upozornil, že od pondělí přecházíme na Triton Inference Server. Dokumentace je na https://wiki.firma.cz/ml/triton-migrace.	ok
+hybrid-0267		Ten loading stav při cold startu je moc dlouhý, uživatel neví, co se děje. Co kdybychom tam dali progress bar s odhadem času?	ok
+hybrid-0268		Odhad času nedokážeme spolehlivě spočítat, cold start se pohybuje mezi 8 a 40 sekundami podle velikosti modelu. Spíš bych doporučil skeleton a textovou hlášku.	ok
+hybrid-0269		Kdo mergnul ten autoscaling config? Na produkci teď běží 14 replik místo čtyř a cloud billing nám letí nahoru.	ok
+hybrid-0270		To jsem byl já, omlouvám se. Revertnu to a nastavím `maxReplicas: 6` v `values-prod.yaml`.	ok
+hybrid-0271		Pro A/B test nového modelu doporučuji začít s 10 % trafficu. Pokud konverze neklesne o víc než 0,5 procentního bodu, navýšíme na 50 %.	ok
+hybrid-0272		Musíme refaktorovat ten preprocessing, je duplicitně v trénovací pipeline i v inference službě. Každá změna se pak musí dělat dvakrát a už jsme kvůli tomu měli training-serving skew.	ok
+hybrid-0273		Graf driftu je fajn, jen bych tam přidal přepínač mezi PSI a KL divergencí. A threshold by měl být nastavitelný.	ok
+hybrid-0276		Ten health check endpoint `/v1/models/ready` vrací 200 i když model ještě není načtený, fixnul by to někdo?	ok
+hybrid-0278		deploynul jsem novou verzi modelu na staging, můžete to otestovat?	ok
+hybrid-0279		Latence p99 vyskočila na 850 ms.	ok
+hybrid-0280		Kdo naposledy sahal na `inference_server.py`? Padá mi to při startu na `CUDA out of memory`.	ok
+hybrid-0281		Dobrý den,\nrád bych vás informoval, že od pondělí přecházíme z TorchServe na Triton Inference Server.\nPodrobnosti najdete na https://wiki.firma.cz/ml/triton-migrace.	ok
+hybrid-0282		Můžeš mi kouknout na pull request #412? Přidal jsem batching požadavků, throughput se zvedl zhruba o 40 %.	ok
+hybrid-0283		fixnul jsem ten memory leak v preprocessingu, byl to nezavřený tokenizer	ok
+hybrid-0284		Model `recsys-v3.2` zatím necháme za feature flagem `enable_new_ranker`, dokud nebudeme mít výsledky A/B testu.	ok
+hybrid-0285		Prosím, nezapomeňte do `model_config.yaml` doplnit `max_batch_size`. Bez toho se kontejner nespustí.	ok
+hybrid-0286		Navrhuji refaktorovat endpoint `/predict` tak, aby vracel i verzi modelu. Usnadní to debugování v produkci.	ok
+hybrid-0287		Autoscaling na GPU nodech nefunguje, HPA pořád drží 2 repliky, i když je fronta přes 300 requestů.\nKoukal jsem do metrik v Grafaně a utilizace je kolem 95 %.\nNavrhuju přidat custom metriku podle délky fronty.	ok
+hybrid-0288		Kvantizovaný model v ONNX má o 2 % horší přesnost, ale je třikrát rychlejší. Za mě to stojí za to.	ok
+hybrid-0290		Je někde zdokumentovaný, jak se registruje model do MLflow?	ok
+hybrid-0292		warmup trvá skoro minutu, readiness probe to zabije dřív, než se model načte	ok
+hybrid-0293		Přidal jsem canary deployment s 5 % trafficu, logy jsou v Kibaně pod indexem `serving-canary-*`.	ok
+hybrid-0294		Tady chybí kontrola na záporný stav skladu.	ok
+hybrid-0296		Metoda `reserveItems` nepoužívá transakci. Při souběžných objednávkách se může stát, že dva requesty zarezervují stejný kus. Doporučuji obalit to do `@Transactional` a přidat optimistický lock přes sloupec `version`.	ok
+hybrid-0297		proč je tady hardcodovaný ID skladu `WH-042`? To by mělo jít z configu.	ok
+hybrid-0298		Dobrý den,\nv souboru `InventoryRepository.java` je dotaz bez indexu na sloupci `sku`. Na produkčních datech (cca 1,2 milionu položek) to bude trvat několik sekund.\nNavrhuji přidat migraci s indexem, případně to probrat na zítřejším standupu.	ok
+hybrid-0299		Nemělo by to být za feature flagem `new_picking_flow`?	ok
+hybrid-0300		Testy na `StockMovementService` úplně chybí. Bez nich to do masteru nepustím.	ok
+hybrid-0301		hezký, jen bych přejmenoval `tmp2` na něco smysluplnějšího.	ok
+hybrid-0303		Tenhle pull request řeší tři různé věci najednou. Rozdělil bych ho alespoň na dva: změnu schématu a úpravu API pro inventuru.	ok
+hybrid-0304		Batch import ze CSV načítá celý soubor do paměti. U exportů od dodavatelů, které mají i 500 MB, to shodí pod.\nZkus to přepsat na streamování po řádcích.	ok
+hybrid-0305		díky, takhle je to mnohem čitelnější 👍	ok
+hybrid-0306		Commitnul jsi omylem `.env` s heslem k databázi, prosím odstraň ho a rotuj credentials.	ok
+hybrid-0307		Výpočet `minStockThreshold` by měl zohledňovat sezónnost, ne jen průměr za posledních 30 dní. Je to ale na samostatný ticket, tady to klidně nech.	ok
+hybrid-0308		Ta enum hodnota `DAMAGED` se v UI nikde nezobrazuje, je to záměr?	ok
+hybrid-0309		Vážení kolegové,\npo deploynutí verze 3.4.1 jsme zaznamenali nesoulad mezi fyzickou inventurou a stavem v systému u 17 položek.\nPříčinou je zřejmě chybějící rollback v `transferBetweenWarehouses()`. Prosím o prioritní review opravy v PR #812.	ok
+hybrid-0312		mergnul jsem to do mainu, kdo má čas, mrkněte na staging	ok
+hybrid-0313		Akční body:\n1. Opravit synchronizaci čárových kódů (`BarcodeSync.java`) – Tomáš.\n2. Připravit feature flag `new_picking_flow` pro sklad Brno – Jana.\n3. Zkontrolovat logy z noci 14. 3. – Martin.	ok
+hybrid-0316		Prosím o review PR #418, jde o úpravu výpočtu minimálních zásob v souboru `reorder_rules.py`.	ok
+hybrid-0318		Formální shrnutí: Vedení schválilo rozšíření skladového systému o modul pro sledování šarží. Implementace proběhne ve třech sprintech, první milník je stanoven na 30. 4. 2024.	ok
+hybrid-0320		Domluveno: dashboard skladových zásob bude dostupný na https://wms.firma.cz/dashboard od pondělí. Přístupy přidělí Eva.	ok
+hybrid-0321		Commitni prosím ty migrace dřív, než to začnu rebasovat.	ok
+hybrid-0323		Vážení kolegové, upozorňujeme, že v sobotu od 22:00 proběhne plánovaná údržba serveru skladového systému. Skenery na příjmu nebudou přibližně dvě hodiny dostupné.	ok
+hybrid-0324		v configu `warehouse.yaml` je špatně nastavený timeout pro tiskárny štítků, opravím to zítra ráno	ok
+hybrid-0325		Akční bod: Radek zapne feature flag `auto_reorder` pouze pro sklad Plzeň a po týdnu vyhodnotí počet automaticky vytvořených objednávek.	ok
+hybrid-0327		Retrospektiva sprintu 7:\nCo fungovalo: rychlé code review a jasné zadání u modulu příjmu zboží.\nCo zlepšit: odhady u úloh spojených s integrací na ERP byly podhodnocené zhruba o 40 %.\nNa příští sprint přidáme do backlogu technický dluh kolem tabulky `stock_movements`.	ok
+hybrid-0328		Mergnuto, zavírám ticket WMS-1027.	ok
+hybrid-0329		Oprava výpočtu skladové zásoby	ok
+hybrid-0331		Refaktorovat import příjemek z CSV\n\nPůvodní parser v `receipt_import.py` načítal celý soubor do paměti, u souborů nad 200 MB padal. Nově se čte po řádcích.\n\nTestováno na staging prostředí s exportem z 12. 3.	ok
+hybrid-0332		WIP: inventura po regálech	ok
+hybrid-0334		Zavedení feature flagu `enable_batch_tracking` pro sledování šarží	ok
+hybrid-0335		Úprava validace čárových kódů EAN-13 a doplnění unit testů	ok
+hybrid-0336		pushnu to až ráno, ještě padá CI na lintu	ok
+hybrid-0337		Odstranění zastaralého modulu pro ruční výdejky	ok
+hybrid-0338		Přidat index na sloupec `sku` v tabulce `inventory_items`\n\nDotazy na dostupnost zboží trvaly v průměru 1,8 s, po přidání indexu klesly na 40 ms.	ok
+hybrid-0340		Nasazení nové verze skladového dashboardu na produkci	ok
+hybrid-0341		opravený překlep v hlášce o nedostatku zboží	ok
+hybrid-0342		Aktualizace závislostí a commitnutí `package-lock.json`	ok
+hybrid-0345		cache pro ceník skladových položek se teď invaliduje po každé změně	ok
+hybrid-0346		buffering na mobilu je zase horší, koukne na to někdo?	ok
+hybrid-0347		Pushnul jsem fix pro ABR algoritmus, teď by se bitrate neměl přepínat tak agresivně. Pull request je tady: https://git.firma.cz/video/player/pull/482	ok
+hybrid-0348		Kdo deploynul včera večer na staging? Encoder od té doby generuje segmenty s nesprávnou délkou.	ok
+hybrid-0349		mám to, mergnu po obědě	ok
+hybrid-0350		Dobrý den, posílám shrnutí incidentu z pátku.\nOd 14:20 do 15:05 docházelo u přibližně 12 % uživatelů k výpadkům streamu v rozlišení 1080p. Příčinou byla chybná konfigurace CDN v souboru `cdn-edge.yaml`.\nNápravná opatření jsou popsána v ticketu VID-1932.	ok
+hybrid-0352		Fixnul jsem ten memory leak v `PlayerBufferManager.kt`, ale ještě potřebuju review.	ok
+hybrid-0354		nevíte někdo, proč se na Safari nenačítá DASH? HLS jede v pohodě.	ok
+hybrid-0356		Rebuffering ratio kleslo z 3,4 % na 1,1 %. Dobrá práce všem!	ok
+hybrid-0357		Chtěl bych refaktorovat celou logiku výběru renditions, momentálně je to rozházené ve třech službách a nikdo neví, co přesně dělá.\nMáte někdo kapacitu na code review příští týden?	ok
+hybrid-0358		Ladder pro 4K je moc strmý, mezi 8 a 16 Mbps chybí mezistupeň.	ok
+hybrid-0359		Rollbacknul jsem verzi 3.12.1, vracíme se na 3.11.4.	ok
+hybrid-0360		Dobrý den, mohli bychom prosím do zítřka dostat export QoE dat za poslední měsíc? Potřebujeme je pro prezentaci klientovi.	ok
+hybrid-0361		jo, to je ten bug s keyframes, encoder je posílá každých 10 s místo 2 s	ok
+hybrid-0362		Testoval jsem to na throttlované síti 3G a kvalita spadne na 360p hned po pěti sekundách. To je přijatelné, ale přechod zpátky nahoru trvá skoro minutu.\nZkusím upravit parametr `bandwidthSafetyFactor` z 0.7 na 0.85 a pošlu výsledky.	ok
+hybrid-0363		Dejte vědět, až bude build hotový.	ok
+hybrid-0368		Ahoj,\nupravil jsem bitrate ladder v souboru `encoding/ladder.yaml`, přidal jsem profil 1080p při 4500 kbps. Pull request je tady: https://git.firma.cz/video/encoder/pull/312\nMrkni na to, prosím, ať to můžeme deploynout do pátku.	ok
+hybrid-0369		Kdy bude deploynutá nová verze playeru?	ok
+hybrid-0370		dneska odpoledne jsem zkoušel CDN failover a startup time vyskočil na 3,4 sekundy. To je dost, ne?	ok
+hybrid-0371		Vážení kolegové,\ndovolte mi informovat vás, že od pondělí 14. října bude nová funkce low latency streamingu dostupná pouze za feature flagem `ll_hls_enabled`.\nPřípadné dotazy směřujte prosím na mě.\nS pozdravem\nTomáš Král	ok
+hybrid-0373		ahoj Lukáši, máš přístup do Grafany? Potřebuju dashboard s metrikami `player.buffer_health` za poslední týden.	ok
+hybrid-0374		Dobrý den,\nzákazník hlásí, že se mu video na Android TV zasekává po zhruba 20 minutách přehrávání. Ticket je VID-4821.\nMohli byste to prosím prioritizovat?\nDěkuji, Eva	ok
+hybrid-0375		Ten hotfix pro segment timeout jsem fixnul, ale v CI padají dva testy v `test_manifest_parser.py`. Kouknu na to zítra ráno.	ok
+hybrid-0377		Ahoj všichni,\npo včerejším rolloutu nového encoderu vidíme u 4K obsahu artefakty v tmavých scénách. Rollbacknul jsem to zatím na staging.\nNavrhuju zvednout CRF z 23 na 21 a zkusit to znovu. Co vy na to?\nMartin	ok
+hybrid-0381		Můžeš mi poslat link na ten monitoring? Ten na https://monitoring.firma.cz/qoe mi nejde otevřít.	ok
+hybrid-0386		Vážení kolegové, v 9:42 jsme zaznamenali výpadek služby `fraud-scoring`. Incident je veden pod číslem INC-3117. Prosíme o součinnost při analýze příčiny.	ok
+hybrid-0388		feature flag `use_new_embeddings` jsem vypnul, error rate klesá	ok
+hybrid-0389		Mám fix v pull requestu #482, můžete to někdo reviewnout? Jde jen o timeout v `serving/config.yaml`.	ok
+hybrid-0391		Prosím o schválení hotfixu, změna se týká pouze cache tokenizeru.	ok
+hybrid-0392		Tritonu se nelíbí nový ONNX export, hází `INVALID_ARG` při loadu modelu.	ok
+hybrid-0394		mergnul jsem to, za deset minut by to mělo být venku	ok
+hybrid-0396		Musíme refaktorovat ten warm-up skript, cold start trvá skoro dvě minuty.	ok
+hybrid-0397		Commitnul jsem změnu limitů do `helm/values-prod.yaml`, ale ještě jsem to nepushnul.	ok
+hybrid-0398		Funguje to, díky všem!	ok
+hybrid-0400		Oprava synchronizace skladových zásob	ok
+hybrid-0401		Přidat validaci SKU při naskladnění\nPři ručním příjmu zboží se dá uložit položka s prázdným `sku`. Je potřeba přidat validaci na backendu i ve formuláři.	ok
+hybrid-0402		Refaktorovat `InventoryService.java`\nTřída má přes 2 000 řádků a míchá logiku příjmu, výdeje i inventury. Navrhuji ji rozdělit na menší služby a pokrýt unit testy.\nPull request prosím mergnout až po review od Petra.	ok
+hybrid-0404		Zavést feature flag pro nové přeskladnění\nNovou logiku přesunů mezi lokacemi schovat za feature flag `warehouse.relocation.v2`, ať ji můžeme zapnout jen pro pobočku Brno.	ok
+hybrid-0405		Nesprávný výpočet minimální zásoby u položek s jednotkou „kg“	ok
+hybrid-0406		pushnul jsem hotfix na upozornění o nízkém stavu, ale e-maily pořád chodí dvakrát. Mrkněte někdo na cron job.	ok
+hybrid-0407		Dashboard obrátkovosti zboží\nVedení požaduje přehled obrátkovosti za posledních 12 měsíců rozdělený podle kategorií. Data brát z reportingového API.	ok
+hybrid-0408		Timeout při importu objednávek od dodavatele	ok
+hybrid-0412		Přidat logování změn stavu zásob	ok
+hybrid-0415		Automatické testy inventurního procesu\nPro celý proces inventury chybí end-to-end testy. Navrhuji je napsat v Playwrightu a spouštět v CI pipeline při každém pull requestu.\nBez toho nechci další změny mergovat.	ok
