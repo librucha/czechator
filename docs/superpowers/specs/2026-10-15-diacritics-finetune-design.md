@@ -129,13 +129,23 @@ model naučil cíl bez háčků. Dokument, ve kterém má diakritiku méně než
 slov, se zahodí (běžná čeština má kolem 40–50 %). Dále jazyková detekce, dedup
 a délkové limity.
 
+**Kontrola pravopisu korpusu** (doplněno při implementaci — první zmražený web
+eval obsahoval reference typu `plavky male holky`): řádek se zahodí, když
+hunspell odmítne některé jeho slovo a v korpusu se zároveň vyskytuje přijatý
+tvar se stejným `fold` (bez ohledu na velikost písmen). Návrhy hunspellu by
+stály ~50 ms na neznámé slovo, tedy hodiny na korpus plný jmen. Daň: chybné
+slovo, jehož správný tvar se v korpusu nikde nevyskytuje, projde. Filtr vyřadil
+6 % řádků Wikipedie a 15 % řádků webu (převážně spam a slovenštinu).
+
 ### 5.2 Syntetický hybrid
 
 Generuje Claude přes Batch API (−50 % ceny). Kategorie: dev chat, commit
 messages, tickety, code review, pracovní maily, poznámky z porad. Prompt
 vyžaduje česky skloňované anglické výrazy (`mergnout`, `deploynout`, `pushnu`,
-`fixnutý`, `refaktorovat`), identifikátory, URL a čísla. Cíl iterace 1: cca 8k
-vět, náklad v jednotkách USD.
+`fixnutý`, `refaktorovat`), identifikátory, URL a čísla. Iterace 1: 804
+requestů po 20 zprávách na `claude-opus-5-5` (25 % rezerva nad potřebou mixu);
+odhad nejméně 25,57 USD, thinking tokeny navíc (Opus 5.5 thinking vypnout
+nedovolí). Výsledek: 13 512 přijatých zpráv.
 
 **Kontrola:** hunspell `cs_CZ`. Když hunspell slovo z generátoru odmítne, ale
 přijme jinou variantu se stejným `fold`, je vzorek podezřelý a zahodí se celý.
@@ -162,13 +172,18 @@ nad celým datasetem před tréninkem; porušení zastaví pipeline.
 Iterace 1: 40k trénovacích a 1k validačních příkladů — malé, aby sweep proběhl
 rychle. Zvětšuje se podle křivky učení.
 
+Skutečnost iterace 1: **38 875 + 1 000**. Hybrid měl po vyřazení řádků
+sdílených s eval setem jen 7 975 jednotek místo potřebných 8 200; zmenšil se
+celek, mix zůstal (`czllm build --total`).
+
 ### 5.5 Eval sety
 
 Zmražené, deduplikované proti train přes hash `fold(text)`:
 
 - `eval/web` — 500 odložených vět z webu a Wikipedie,
 - `eval/hybrid` — 300 vět; **cca 200 z nich ručně zkontroluje uživatel**,
-  protože tento set rozhoduje o hybridu a generátor se mýlit může,
+  protože tento set rozhoduje o hybridu a generátor se mýlit může
+  (skutečnost: zkontrolováno všech 300, 3 zahozeny, 3 opraveny → 297),
 - `eval/private` — texty uživatele (Slack, poznámky, commity), jen lokálně v
   `data/private/`, nikdy v gitu a nikdy v train,
 - `Fixtures/quality` — přes `czechator quality`.
@@ -179,14 +194,19 @@ Stav k 2026-10 (ověřit přesná repo jména na HF v rámci fáze 0):
 
 | kandidát | velikost | poznámka |
 |---|---|---|
-| Qwen3.5-0.8B (instruct) | 0.8B | non-thinking defaultně; nová hybridní architektura |
-| Qwen3.5-2B (instruct) | 2B | obsahuje vision encoder — pro text se nepoužije |
+| Qwen3.5-0.8B (instruct) | 0.8B | **vyřazen** — viz níže |
+| Qwen3.5-2B (instruct) | 2B | **vyřazen** — viz níže |
 | Gemma 4 E2B-it | ~2B efektivně | slovník 262k, úspornější tokenizace češtiny |
 | Gemma 3 270M-it | 0.27B | navržená pro úzký fine-tuning; kontrola „jak malé stačí“ |
 
 Rychlost: model generuje celý text znovu, takže latence roste s počtem
 výstupních tokenů. Tokenizer, který rozbíjí `ř`, `ů`, `ě` na víc tokenů,
 stejnou větu prodraží. Fáze 0 proto měří tokeny na znak.
+
+**Qwen3.5 vyřazen:** export prošel, ale mlx-lm 0.32 trénuje jeho gated delta
+vrstvy Python smyčkou po tokenech (`models/qwen3_5.py`,
+`use_kernel=not self.training`), ~26 trénovaných tokenů/s na 0.8B — 40k set by
+trval dny. Tokeny na znak: Qwen3.5 0,403, Gemma 0,397 — rozdíl zanedbatelný.
 
 ## 7. Trénink a export
 
@@ -205,19 +225,34 @@ Fallback exportu: `ollama create --quantize q4_K_M` přímo ze safetensors.
 - JSONL `{"messages": [system, user, assistant]}`, `--mask-prompt` (loss jen z
   odpovědi),
 - start: LoRA rank 16, alpha 32, všechny lineární vrstvy, lr 1e-4 (2e-4 pro
-  270M), batch 16, 1 epocha, max seq 1024, pevný seed,
-- validace každých 200 kroků, checkpointy zachované,
-- thinking vypnutý v šabloně; eval kontroluje, že výstup neobsahuje `<think>`,
+  270M), batch 16, 1 epocha, pevný seed,
+- **skutečnost:** batch 16 jako 4 mikro-dávky po 4 s akumulací gradientu —
+  slovník Gemmy (262k) dělá z fp32 logitů dávky 16 × 2560 tokenů ~43 GB (OOM);
+  `max_seq_length` **2560** místo 1024 — drop-in prompt + 2 × 1500 znaků se do
+  1024 tokenů nevejde a nejdelší technická dávka měla 2049 tokenů; před
+  tréninkem se každý záznam tokenizuje a delší než limit pipeline odmítne,
+- validace každých 800 mikro-kroků (= 200 optimalizačních), checkpointy
+  zachované,
+- thinking: šablona se přebírá z base modelu beze změny; že model nemyslí,
+  ověřuje gate (prázdné `message.thinking`, žádné `<think>`) a eval to počítá
+  jako format fail,
 - full fine-tune až jako pozdější krok, pokud LoRA narazí na strop.
 
 ### 7.3 Export
 
 ```
-mlx_lm.fuse --dequantize   ->  HF safetensors
+mlx_lm.fuse --dequantize   ->  fused (MLX layout)
+hf_merge                   ->  base HF checkpoint + adaptované lineární váhy z fused
 convert_hf_to_gguf.py      ->  f16 GGUF
 llama-quantize             ->  Q8_0, Q4_K_M
 ollama create czechator-<base>:v<N>-<quant> -f Modelfile
 ```
+
+`mlx_lm.fuse` ukládá MLX layout (u Qwen3.5 RMSNorm váhy +1, transponovaný
+`conv1d`) a GGUF z něj generoval nesmysly. LoRA mění jen lineární vrstvy, které
+mají v MLX i HF stejný layout, takže export bere base checkpoint a nahradí jen
+je. Konvertor llama.cpp běží s transformers ve verzi mlx-lm (pinovaná 4.57.6
+nezná `Qwen3_5Tokenizer`).
 
 Modelfile: `TEMPLATE` z base modelu, `PARAMETER temperature 0`,
 `PARAMETER num_ctx 4096`, stop tokeny, `SYSTEM` = krátký kontrakt.
@@ -237,11 +272,11 @@ stejný harness.
 
 | metrika | definice |
 |---|---|
-| exact % | segment byte-identický s referencí |
+| exact % | segment (řádek) byte-identický s referencí |
 | verified % | `fold(out) == fold(in)` a seznam se rozparsuje — to, co czechator přijme |
-| word DER | chybovost diakritiky po slovech; chybějící (recall) a přebývající (precision) zvlášť |
+| word DER | chybovost diakritiky po slovech, **jen nad verifikovanými segmenty** (jinak nejde zarovnat po pozicích); chybějící a přebývající zvlášť |
 | EN untouched % | hybrid: anglická slova a identifikátory beze změny |
-| ambiguous | chyby na slovech se stejným `fold` (`byt`/`být`, `rad`/`rád`/`řád`) zvlášť |
+| ambiguous | chyby na slovech, jejichž `fold` má v korpusu ≥ 2 tvary, každý ≥ 3× (`byt`/`být`, `rad`/`rád`/`řád`) |
 | format fail | chyba parsování, `<think>`, preambule, chybějící položka |
 | latence | p50/p95 warm pro zprávu 300 znaků, cold první volání, tok/s; Q8_0 i Q4_K_M |
 
