@@ -62,7 +62,14 @@ def import_review(path: Path, synth_by_id: dict[str, dict]) -> list[dict]:
     for row in lines[1:]:
         if not row.strip():
             continue
-        rid, verdict, text = row.split("\t", 2)
+        parts = row.split("\t")
+        if len(parts) == 3:
+            rid, verdict, text = parts
+        elif len(parts) == 4 and not parts[1].strip():
+            # Verdict written after the text instead of into its own column.
+            rid, _, text, verdict = parts
+        else:
+            raise ValueError(f"{parts[0]}: expected id, verdict, text; got {len(parts)} columns")
         verdict = verdict.strip().lower()
         if verdict == "x":
             continue

@@ -53,6 +53,38 @@ def test_review_round_trip(tmp_path):
     assert all(r["reviewed"] for r in out.values())
 
 
+def test_review_accepts_the_verdict_after_the_text(tmp_path):
+    # Reviewers append the verdict as a fourth column; it must not end up
+    # inside the reference text.
+    synth = {
+        "hybrid-0000": {"text": "Pushnu to zítra.", "english_terms": ["Pushnu"]},
+        "hybrid-0001": {"text": "Mergnu to zitra.", "english_terms": ["Mergnu"]},
+        "hybrid-0002": {"text": "Hotovo, díky.", "english_terms": []},
+    }
+    tsv = tmp_path / "review.tsv"
+    tsv.write_text(
+        "id\tverdict\ttext\n"
+        "hybrid-0000\t\tPushnu to zítra.\tok\n"
+        "hybrid-0001\t\tMergnu to zítra.\tfix\n"
+        "hybrid-0002\t\tHotovo, díky.\tx\n",
+        encoding="utf-8",
+    )
+    out = {r["id"]: r for r in import_review(tsv, synth)}
+    assert set(out) == {"hybrid-0000", "hybrid-0001"}
+    assert out["hybrid-0000"]["text"] == "Pushnu to zítra."
+    assert out["hybrid-0001"]["text"] == "Mergnu to zítra."
+    assert all(r["reviewed"] for r in out.values())
+
+
+def test_review_rejects_rows_it_cannot_read(tmp_path):
+    import pytest
+
+    tsv = tmp_path / "review.tsv"
+    tsv.write_text("id\tverdict\ttext\nhybrid-0000\tok\tA\tB\tC\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="hybrid-0000"):
+        import_review(tsv, {"hybrid-0000": {"text": "A", "english_terms": []}})
+
+
 def test_import_private_normalizes_like_czechator(tmp_path):
     f = tmp_path / "slack.txt"
     f.write_text("Schůzka je v úterý.\n\n  škola  \n", encoding="utf-8")
