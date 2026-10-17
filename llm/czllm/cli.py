@@ -15,6 +15,7 @@ COMMAND_MODULES = [
     "czllm.train.run",
     "czllm.export.gguf",
     "czllm.gate",
+    "czllm.release.hf",
 ]
 
 

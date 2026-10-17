@@ -142,6 +142,58 @@ relative to it.
 requests on `claude-opus-5-5` through the Batch API — is estimated at no less
 than 25.57 USD; thinking tokens come on top and are not in the estimate.
 
+## Publish on Hugging Face
+
+A model is published as a GGUF repository that Ollama pulls directly:
+
+```bash
+ollama pull hf.co/librucha/czechator-gemma3-270m-GGUF:Q8_0
+```
+
+Next to the GGUF the repo carries three files Ollama reads on pull —
+`template` (Go), `system` and `params` (JSON: temperature 0, `num_ctx` 4096,
+stop tokens) — so the pulled model behaves like the locally created one. For
+models Ollama renders with built-in code (`RENDERER gemma4`), which a Hub repo
+cannot express, the release writes an equivalent Go template that reproduces
+the training chat format turn for turn.
+
+```bash
+# 1. Stage locally: GGUF (hard link), template/system/params, LICENSE, NOTICE, model card
+uv run czllm release stage \
+  --run runs/<run> --candidate gemma3-270m \
+  --repo librucha/czechator-gemma3-270m-GGUF --quants Q8_0 \
+  --license-file release/licenses/gemma-terms.txt \
+  --baseline runs/baseline/qwen3-4b.json --quality 18/23/23
+
+# 2. Build the staged folder in the local Ollama and smoke-test it
+uv run czllm release verify --dir release/czechator-gemma3-270m-GGUF
+
+# 3. Upload: dry run first; private unless --public
+uv run czllm release publish --dir release/czechator-gemma3-270m-GGUF \
+  --repo librucha/czechator-gemma3-270m-GGUF
+uv run czllm release publish --dir release/czechator-gemma3-270m-GGUF \
+  --repo librucha/czechator-gemma3-270m-GGUF --yes
+```
+
+`--quality` is the `czechator quality --corrections strict` result on the
+`clean` set, as EXACT/VERIFIED/TOTAL; the other numbers in the card come from
+the run's `eval-*.json`.
+
+**Licences.** `stage` refuses to run without `--license-file`: the full text
+of the base model's licence ships in `LICENSE`. Gemma 3 is under the
+[Gemma Terms of Use](https://ai.google.dev/gemma/terms) — save its text as
+`release/licenses/gemma-terms.txt`; `stage` also writes the required `NOTICE`.
+Gemma 4 is under [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt).
+The card attributes FineWeb-2 (ODC-By) and Wikipedia (CC BY-SA 4.0) and states
+that part of the training data was generated with Claude. Whether publishing a
+model trained on Claude outputs fits Anthropic's terms is for you to check
+before `--public`; nothing here decides it.
+
+**A private repo first.** Ollama pulls a private repo once its SSH key is added
+to the Hugging Face account (`cat ~/.ollama/id_ed25519.pub`, then *Settings →
+SSH keys*). Pull it, run `czllm eval --model hf.co/<repo>:Q8_0`, and only then
+make the repo public on the Hub.
+
 ## How it works, briefly
 
 - **Targets** are Czech lines with correct diacritics; **inputs** are the same

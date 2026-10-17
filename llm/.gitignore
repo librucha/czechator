@@ -5,3 +5,4 @@ docs/jak-to-funguje.md
 runs/
 data/*
 !data/eval/
+/release/
