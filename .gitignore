@@ -10,3 +10,4 @@ img/*.zip
 docs/superpowers/plans/
 __pycache__/
 *.pyc
+/.claude/worktrees/
