@@ -232,11 +232,13 @@ This model was modified from the original by fine-tuning.{notice}
 """
 
 
-def _results(run: Path, baseline: Path | None) -> list[dict]:
+def _results(run: Path, baseline: Path | None, quants: list[str]) -> list[dict]:
     out = []
     for path in sorted(run.glob("eval-*.json")):
         r = json.loads(path.read_text(encoding="utf-8"))
         quant = path.stem.split("-")[1].upper()
+        if quant not in quants:
+            continue
         contract = "short prompt" if r["contract"] == "short" else "czechator prompt"
         out.append({"label": f"this model, {quant}, {contract}", "sets": r["sets"], "latency": r.get("latency")})
     if baseline:
@@ -288,7 +290,7 @@ def stage(*, run: Path, base_model: str, base_snapshot: Path, repo: str, quants:
         n_train = sum(1 for _ in data.open(encoding="utf-8"))
     info = CardInfo(repo=repo, base_model=base_model, license=license_id, license_link=license_link,
                     quants=[q.upper() for q in quants], system=modelfile["system"],
-                    results=_results(run, baseline), quality=quality,
+                    results=_results(run, baseline, [q.upper() for q in quants]), quality=quality,
                     lora={k: v for k, v in lora.items() if v is not None}, train_examples=n_train)
     (target / "README.md").write_text(render_card(info), encoding="utf-8")
     return target

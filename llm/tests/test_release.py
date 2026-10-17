@@ -150,6 +150,10 @@ def _run(tmp_path):
         "sets": {"web": {"items": 500, "exact": 0.366, "verified": 0.73, "der": 0.047}},
         "latency": {"p50_s": 0.52, "cold_s": 0.99},
     }))
+    (run / "eval-q4_k_m-drop_in.json").write_text(json.dumps({
+        "model": "czechator-gemma3-270m:v1-q4_k_m", "contract": "drop_in",
+        "sets": {"web": {"items": 500, "exact": 0.318, "verified": 0.666, "der": 0.053}},
+    }))
     snapshot = tmp_path / "snapshot"
     snapshot.mkdir()
     (snapshot / "README.md").write_text("---\nlicense: gemma\n---\n")
@@ -170,7 +174,10 @@ def test_stage_writes_everything_ollama_and_the_hub_need(tmp_path):
     assert (out / "system").read_text() == "Restore Czech diacritics in each numbered item. Change nothing else."
     assert (out / "LICENSE").read_text() == "GEMMA TERMS"
     # mlx.yaml paths are relative to llm/, not to wherever stage runs from
-    assert "one epoch over 3 examples" in (out / "README.md").read_text()
+    card = (out / "README.md").read_text()
+    assert "one epoch over 3 examples" in card
+    # only results of the quantizations the repo actually ships
+    assert "Q8_0" in card and "Q4_K_M" not in card
 
 
 def test_stage_refuses_without_a_licence_text(tmp_path):
