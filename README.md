@@ -267,9 +267,51 @@ failure: the model cannot fix a typo and still pass exact verification.
 
 ## Which model to use
 
-`qwen3:4b-instruct` is the default and the one that was measured. On the
-23-sample suite in `Fixtures/quality/` it got 15 exactly right and 22 past
-verification. Its misses are almost all a missing `ě`.
+`qwen3:4b-instruct` is the default, because it is the one you can `ollama pull`.
+On the 23-sample suite in `Fixtures/quality/` it got 15 exactly right and 22
+past verification. Its misses are almost all a missing `ě`.
+
+**Two models fine-tuned for this tool do better**, and neither needs any change
+to czechator — they are trained on its own prompt and wire format:
+
+| model | `quality` exact / verified | p50, 300 chars | use it when |
+|---|---|---|---|
+| `czechator-gemma3-270m:v1-q8_0` | 18/23, 23/23 | 0.5 s | speed matters: the answer arrives before you reach for paste |
+| `czechator-gemma4-e2b:v1-q8_0` | 23/23, 23/23 | 2.1 s | accuracy matters: half the errors of the small one on web text |
+| `qwen3:4b-instruct` (default) | 15/23, 22/23 | 1.9–2.7 s | you have not built either of the above |
+
+Measured on an M4 Max with Q8_0 quantization. On a larger held-out set — 500
+lines of web text and 297 hand-checked Czech/English workplace messages — the
+small model is exact on 37 % and 77 % of lines, the larger one on 54 % and 89 %,
+the default on 14 % and 23 %.
+
+They are not on the Ollama registry: **you build them yourself** with the
+pipeline in [`llm/`](llm/README.md) — data preparation, an MLX LoRA run (about
+1.5 h for 270M, 11 h for E2B on an M4 Max) and the export to Ollama. Both are
+diacritics-only (`corrections: strict`); a tolerant mode sends them a prompt
+they were not trained on. The fine-tuning adds no safety of its own: words
+whose spellings differ only in diacritics (`byt`/`být`) are still guessed from
+context, and verification cannot catch a wrong guess there.
+
+A fast and an accurate profile side by side:
+
+```yaml
+profiles:
+  fast:
+    kind: ollama
+    endpoint: http://localhost:11434
+    model: czechator-gemma3-270m:v1-q8_0
+    temperature: 0
+    timeoutSeconds: 30
+    corrections: strict        # the only mode these models were trained for
+  accurate:
+    kind: ollama
+    endpoint: http://localhost:11434
+    model: czechator-gemma4-e2b:v1-q8_0
+    temperature: 0
+    timeoutSeconds: 30
+    corrections: strict
+```
 
 `gemma3:4b` was measured too and is **not recommended** — 4/10 exact, 5/10
 verified, and its failures included swapping whole words (see above). Nothing
@@ -613,6 +655,7 @@ Sources/
   CzechatorCore/     format detection, segmentation, verification, providers
   czechator/         CLI
   CzechatorApp/      menu bar app, hotkey, clipboard, Keychain
+llm/                 Python pipeline that fine-tunes the czechator-* models
 ```
 
 `CzechatorCore` never imports AppKit, SwiftUI, Security or Carbon — the clipboard,

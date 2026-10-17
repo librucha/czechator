@@ -76,15 +76,25 @@ E2B ~11 h.
 
 ```yaml
 profiles:
-  finetuned:
-    provider: ollama
+  fast:
+    kind: ollama
+    endpoint: http://localhost:11434
     model: czechator-gemma3-270m:v1-q8_0
+    temperature: 0
+    timeoutSeconds: 30
+    corrections: strict
+  accurate:
+    kind: ollama
+    endpoint: http://localhost:11434
+    model: czechator-gemma4-e2b:v1-q8_0
+    temperature: 0
+    timeoutSeconds: 30
     corrections: strict
 ```
 
-The model exists only in the Ollama instance it was created in. To move it,
+A model exists only in the Ollama instance it was created in. To move one,
 copy `runs/<run>/gguf/model-q8_0.gguf` and its `Modelfile.q8_0`, then
-`ollama create czechator-gemma3-270m:v1-q8_0 -f Modelfile.q8_0`.
+`ollama create czechator-<candidate>:v1-q8_0 -f Modelfile.q8_0`.
 
 ## Reproduce
 
