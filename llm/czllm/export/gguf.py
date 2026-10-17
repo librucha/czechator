@@ -25,9 +25,11 @@ def parse_stops(parameters: str) -> list[str]:
 
 
 def parse_directives(modelfile: str) -> dict[str, str]:
-    """RENDERER and PARSER of a base model's Modelfile. Newer Ollama renders
-    some models (Gemma 4) with built-in Go code; their TEMPLATE is then only
-    a placeholder, and without RENDERER the model gets a bare prompt."""
+    """RENDERER and PARSER of a base model's Modelfile. Ollama renders some
+    models (Gemma 4) with built-in code and their TEMPLATE is a placeholder.
+    Ollama 0.40 infers both from the GGUF architecture even when they are
+    missing; writing them out keeps the Modelfile correct without relying on
+    that inference."""
     found = re.findall(r"^(RENDERER|PARSER) (\S+)\s*$", modelfile, flags=re.MULTILINE)
     return {key.lower(): value for key, value in found}
 

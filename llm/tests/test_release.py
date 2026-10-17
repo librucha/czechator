@@ -54,6 +54,38 @@ def test_a_hub_repo_gets_a_real_go_template_where_ollama_uses_a_renderer():
     assert hub_template(plain) == (plain["template"], ["<end_of_turn>", "<eos>"])
 
 
+def _hf_snapshot(repo):
+    from pathlib import Path
+
+    root = Path.home() / ".cache" / "huggingface" / "hub" / f"models--{repo.replace('/', '--')}" / "snapshots"
+    return next(root.glob("*/tokenizer_config.json"), None)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not __import__("shutil").which("go") or _hf_snapshot("google/gemma-4-E2B-it") is None,
+                    reason="needs Go and the cached google/gemma-4-E2B-it tokenizer")
+def test_gemma4_go_template_renders_exactly_the_training_chat_format(tmp_path):
+    import subprocess
+    from pathlib import Path
+
+    from transformers import AutoTokenizer
+
+    from czllm.release.hf import GO_TEMPLATES
+
+    template = tmp_path / "template"
+    template.write_text(GO_TEMPLATES["gemma4"][0])
+    tok = AutoTokenizer.from_pretrained("google/gemma-4-E2B-it")
+    renderer = Path(__file__).with_name("render_template.go")
+    for messages in (
+        [{"role": "system", "content": "SYS"}, {"role": "user", "content": "1. kun\n2. pes"}],
+        [{"role": "user", "content": "1. kun"}],
+    ):
+        want = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        got = subprocess.run(["go", "run", str(renderer), str(template)], input=json.dumps(messages),
+                             capture_output=True, text=True, check=True).stdout
+        assert "<bos>" + got == want   # Ollama adds BOS as a token, not as template text
+
+
 def test_an_unknown_renderer_is_refused():
     from czllm.release.hf import hub_template
 

@@ -69,8 +69,8 @@ def test_convert_keeps_mtp_when_weights_exist_or_none_declared(tmp_path):
 
 def test_renderer_and_parser_are_carried_over():
     # Ollama renders Gemma 4 with a built-in renderer; its TEMPLATE is only a
-    # placeholder. Dropping RENDERER sent the model a bare prompt with no
-    # system prompt and no turn markers.
+    # placeholder. Ollama 0.40 infers the renderer from the architecture, but
+    # the Modelfile should not depend on that.
     from czllm.export.gguf import parse_directives
 
     base = "FROM /x\nTEMPLATE {{ .Prompt }}\nRENDERER gemma4\nPARSER gemma4\nPARAMETER temperature 1\n"
