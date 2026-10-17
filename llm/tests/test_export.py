@@ -67,5 +67,18 @@ def test_convert_keeps_mtp_when_weights_exist_or_none_declared(tmp_path):
     assert "--no-mtp" not in convert_cmd(gemma, tmp_path / "out.gguf")
 
 
+def test_renderer_and_parser_are_carried_over():
+    # Ollama renders Gemma 4 with a built-in renderer; its TEMPLATE is only a
+    # placeholder. Dropping RENDERER sent the model a bare prompt with no
+    # system prompt and no turn markers.
+    from czllm.export.gguf import parse_directives
+
+    base = "FROM /x\nTEMPLATE {{ .Prompt }}\nRENDERER gemma4\nPARSER gemma4\nPARAMETER temperature 1\n"
+    assert parse_directives(base) == {"renderer": "gemma4", "parser": "gemma4"}
+    assert parse_directives("FROM /x\nPARAMETER stop <end_of_turn>\n") == {}
+    mf = render_modelfile("./m.gguf", "{{ .Prompt }}", [], SHORT_SYSTEM, directives={"renderer": "gemma4", "parser": "gemma4"})
+    assert "RENDERER gemma4" in mf.splitlines() and "PARSER gemma4" in mf.splitlines()
+
+
 def test_model_tag():
     assert model_tag("qwen35-0.8b", 1, "Q4_K_M") == "czechator-qwen35-0.8b:v1-q4_k_m"

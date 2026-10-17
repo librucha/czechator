@@ -24,13 +24,23 @@ def parse_stops(parameters: str) -> list[str]:
     return re.findall(r'^stop\s+"(.*)"\s*$', parameters, flags=re.MULTILINE)
 
 
-def render_modelfile(from_path: str, template: str, stops: list[str], system: str, num_ctx: int = 4096) -> str:
+def parse_directives(modelfile: str) -> dict[str, str]:
+    """RENDERER and PARSER of a base model's Modelfile. Newer Ollama renders
+    some models (Gemma 4) with built-in Go code; their TEMPLATE is then only
+    a placeholder, and without RENDERER the model gets a bare prompt."""
+    found = re.findall(r"^(RENDERER|PARSER) (\S+)\s*$", modelfile, flags=re.MULTILINE)
+    return {key.lower(): value for key, value in found}
+
+
+def render_modelfile(from_path: str, template: str, stops: list[str], system: str, num_ctx: int = 4096,
+                     directives: dict[str, str] | None = None) -> str:
     for name, value in (("template", template), ("system", system)):
         if '"""' in value:
             raise ValueError(f"{name} contains triple quotes")
     lines = [
         f"FROM {from_path}",
         f'TEMPLATE """{template}"""',
+        *[f"{key.upper()} {value}" for key, value in (directives or {}).items()],
         f'SYSTEM """{system}"""',
         "PARAMETER temperature 0",
         f"PARAMETER num_ctx {num_ctx}",
@@ -87,12 +97,13 @@ def export(run: Path, c: Candidate, version: int | str, quants=("Q8_0", "Q4_K_M"
     _run(["ollama", "pull", c.ollama_base])
     template = _run(["ollama", "show", "--template", c.ollama_base]).rstrip("\n")
     stops = parse_stops(_run(["ollama", "show", "--parameters", c.ollama_base]))
+    directives = parse_directives(_run(["ollama", "show", "--modelfile", c.ollama_base]))
     hf = hf_checkpoint(run, c)
     tags = []
     if via == "ollama":
         for quant in quants:
             tag = model_tag(c.name, version, quant)
-            (run / "Modelfile").write_text(render_modelfile("./hf", template, stops, SHORT_SYSTEM), encoding="utf-8")
+            (run / "Modelfile").write_text(render_modelfile("./hf", template, stops, SHORT_SYSTEM, directives=directives), encoding="utf-8")
             _run(["ollama", "create", tag, "--quantize", quant.lower(), "-f", "Modelfile"], cwd=run)
             tags.append(tag)
         return tags
@@ -108,7 +119,7 @@ def export(run: Path, c: Candidate, version: int | str, quants=("Q8_0", "Q4_K_M"
             _run([shutil.which("llama-quantize") or "llama-quantize", str(f16), str(out), quant])
         tag = model_tag(c.name, version, quant)
         modelfile = gguf / f"Modelfile.{quant.lower()}"
-        modelfile.write_text(render_modelfile(f"./{out.name}", template, stops, SHORT_SYSTEM), encoding="utf-8")
+        modelfile.write_text(render_modelfile(f"./{out.name}", template, stops, SHORT_SYSTEM, directives=directives), encoding="utf-8")
         _run(["ollama", "create", tag, "-f", modelfile.name], cwd=gguf)
         tags.append(tag)
     return tags
