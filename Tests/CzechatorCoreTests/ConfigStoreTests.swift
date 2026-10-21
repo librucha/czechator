@@ -105,6 +105,37 @@ private func write(_ yaml: String, to url: URL) throws {
     #expect(throws: ConfigError.unknownActiveProfile("neexistuje")) { try store.load() }
 }
 
+@Test func dictionaryRoundTripsThroughYAML() throws {
+    let (store, _) = temporaryStore()
+    var config = Config.builtIn
+    config.dictionary = [
+        DictionaryRule(from: "google docs", to: "google docs"),
+        DictionaryRule(from: "Ahmadinezad", to: "Ahmadínežád"),
+    ]
+    try store.save(config)
+    #expect(try store.load().dictionary == config.dictionary)
+}
+
+@Test func aConfigWithoutDictionaryLoadsEmpty() throws {
+    let (store, url) = temporaryStore()
+    try write("activeProfile: local\n", to: url)
+    #expect(try store.load().dictionary.isEmpty)
+}
+
+@Test func loadRefusesAHandWrittenInvalidRule() throws {
+    let (store, url) = temporaryStore()
+    try write(
+        """
+        activeProfile: local
+        dictionary:
+          - from: teda
+            to: tedy
+        """, to: url)
+    #expect(throws: ConfigError.invalidDictionaryRule(from: "teda", problem: .differsBeyondDiacritics)) {
+        try store.load()
+    }
+}
+
 @Test func defaultsPointAtTheExpectedLocation() {
     #expect(ConfigStore.defaultURL().path.hasSuffix(".config/czechator/config.yaml"))
 }

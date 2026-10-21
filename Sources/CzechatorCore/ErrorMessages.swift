@@ -85,6 +85,17 @@ public enum ErrorMessages {
         case .invalidEndpoint(let profile, let value):
             return "Profil \(profile) má neplatnou adresu: \(value). "
                 + "Očekává se http:// nebo https:// včetně hostitele."
+        case .invalidDictionaryRule(let from, .differsBeyondDiacritics):
+            return "Pravidlo slovníku „\(from)“ mění víc než diakritiku. "
+                + "Czechator smí měnit jen háčky a čárky."
+        case .invalidDictionaryRule(_, .empty):
+            return "Pravidlo slovníku je prázdné."
+        case .invalidDictionaryRule(let from, .multiline):
+            return "Pravidlo slovníku „\(from)“ obsahuje nový řádek; "
+                + "pravidlo platí jen v rámci jednoho řádku."
+        case .duplicateDictionaryRule(let from):
+            return "Pravidlo slovníku „\(from)“ je ve slovníku dvakrát "
+                + "(bez ohledu na diakritiku a velikost písmen)."
         }
     }
 

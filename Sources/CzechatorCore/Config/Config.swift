@@ -146,6 +146,9 @@ public struct Config: Sendable, Codable, Equatable {
     public var features: FeatureFlags
     public var prompt: PromptConfig
     public var trigger: TriggerConfig
+    /// The personal dictionary: diacritic-only rules applied to every model
+    /// output. Global, because a name is spelled the same whichever model ran.
+    public var dictionary: [DictionaryRule]
 
     public static let builtIn = Config(
         activeProfile: "local",
@@ -175,7 +178,8 @@ public struct Config: Sendable, Codable, Equatable {
     public init(
         activeProfile: String, profiles: [String: Profile], hotkeys: [HotkeyBinding],
         limits: Limits, segmentation: SegmentationRules,
-        features: FeatureFlags, prompt: PromptConfig, trigger: TriggerConfig
+        features: FeatureFlags, prompt: PromptConfig, trigger: TriggerConfig,
+        dictionary: [DictionaryRule] = []
     ) {
         self.activeProfile = activeProfile
         self.profiles = profiles
@@ -185,6 +189,7 @@ public struct Config: Sendable, Codable, Equatable {
         self.features = features
         self.prompt = prompt
         self.trigger = trigger
+        self.dictionary = dictionary
     }
 
     public init(from decoder: any Decoder) throws {
@@ -209,6 +214,9 @@ public struct Config: Sendable, Codable, Equatable {
             try container.decodeIfPresent(PromptConfig.self, forKey: .prompt) ?? defaults.prompt
         trigger =
             try container.decodeIfPresent(TriggerConfig.self, forKey: .trigger) ?? defaults.trigger
+        dictionary =
+            try container.decodeIfPresent([DictionaryRule].self, forKey: .dictionary)
+            ?? defaults.dictionary
     }
 
     /// The profile the tool will actually use.
@@ -229,6 +237,15 @@ public struct Config: Sendable, Codable, Equatable {
             else {
                 throw ConfigError.invalidEndpoint(
                     profile: name, value: profile.endpoint.absoluteString)
+            }
+        }
+        var seen = Set<String>()
+        for rule in dictionary {
+            if let problem = rule.problem {
+                throw ConfigError.invalidDictionaryRule(from: rule.from, problem: problem)
+            }
+            guard seen.insert(rule.matchKey).inserted else {
+                throw ConfigError.duplicateDictionaryRule(from: rule.from)
             }
         }
     }

@@ -5,6 +5,8 @@ public enum ConfigError: Error, Equatable {
     case serializationFailed
     case unknownActiveProfile(String)
     case invalidEndpoint(profile: String, value: String)
+    case invalidDictionaryRule(from: String, problem: DictionaryRuleProblem)
+    case duplicateDictionaryRule(from: String)
 }
 
 public struct ConfigStore: Sendable {
