@@ -40,6 +40,13 @@ enum DebugReporter {
                         "  přes rozpočet: „\(over.word)\" — \(over.spent) editů, "
                             + "povoleno \(over.allowance)")
                 }
+            },
+            onDictionary: { segment, applied in
+                for application in applied {
+                    write(
+                        "  slovník: „\(application.rule.from)“ → „\(application.rule.to)“ "
+                            + "v „\(visible(segment))“")
+                }
             })
     }
 

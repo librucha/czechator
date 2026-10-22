@@ -144,7 +144,8 @@ struct QualityCommand: AsyncParsableCommand {
                     letterCase: policy,
                     corrections: cell.corrections,
                     editBudget: cell.profile.editBudget,
-                    verification: true)
+                    verification: true,
+                    dictionary: PersonalDictionary(rules: environment.config.dictionary))
 
                 let outcome = try await QualityRunner.run(
                     set: set, pipeline: pipeline, mode: cell.corrections, policy: policy)

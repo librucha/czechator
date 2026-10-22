@@ -67,13 +67,16 @@ extension ProviderFailure {
 public struct PipelineObserver: Sendable {
     public var onExchange: @Sendable (_ sent: [String], _ received: [String]) -> Void
     public var onRejected: @Sendable (_ original: String, _ correction: String) -> Void
+    public var onDictionary: @Sendable (_ segment: String, _ applied: [DictionaryApplication]) -> Void
 
     public init(
         onExchange: @escaping @Sendable ([String], [String]) -> Void,
-        onRejected: @escaping @Sendable (String, String) -> Void
+        onRejected: @escaping @Sendable (String, String) -> Void,
+        onDictionary: @escaping @Sendable (String, [DictionaryApplication]) -> Void = { _, _ in }
     ) {
         self.onExchange = onExchange
         self.onRejected = onRejected
+        self.onDictionary = onDictionary
     }
 }
 
@@ -87,6 +90,7 @@ public struct Pipeline: Sendable {
     private let corrections: CorrectionMode
     private let editBudget: EditBudget
     private let verification: Bool
+    private let dictionary: PersonalDictionary
     private let observer: PipelineObserver?
 
     public init(
@@ -96,6 +100,7 @@ public struct Pipeline: Sendable {
         corrections: CorrectionMode = .strict,
         editBudget: EditBudget = .builtIn,
         verification: Bool = true,
+        dictionary: PersonalDictionary = .empty,
         observer: PipelineObserver? = nil
     ) {
         self.registry = registry
@@ -106,6 +111,7 @@ public struct Pipeline: Sendable {
         self.corrections = corrections
         self.editBudget = editBudget
         self.verification = verification
+        self.dictionary = dictionary
         self.observer = observer
     }
 
@@ -459,8 +465,13 @@ public struct Pipeline: Sendable {
                 let restored = Self.alignCase(
                     unmasked, like: segments[target].text,
                     policy: letterCase, mode: self.corrections)
-                corrections[target] = restored
-                cache[segments[target].text] = restored
+                // The dictionary has the last word over the model, and it runs
+                // before verification and before the cache, so a repeated
+                // segment is served exactly what the first one got.
+                let (final, applied) = dictionary.apply(to: restored, source: segments[target].text)
+                if !applied.isEmpty { observer?.onDictionary(segments[target].text, applied) }
+                corrections[target] = final
+                cache[segments[target].text] = final
             }
         }
     }

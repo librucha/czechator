@@ -218,7 +218,8 @@ final class AppModel: ObservableObject {
                     letterCase: config.features.letterCase,
                     corrections: profile.corrections,
                     editBudget: profile.editBudget,
-                    verification: profile.verification)
+                    verification: profile.verification,
+                    dictionary: PersonalDictionary(rules: config.dictionary))
 
                 let result = try await pipeline.run(input)
                 // Only ever reached on success: a throw anywhere above leaves

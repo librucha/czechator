@@ -34,6 +34,7 @@ struct FixCommand: AsyncParsableCommand {
             corrections: active?.corrections ?? .strict,
             editBudget: active?.editBudget ?? .builtIn,
             verification: active?.verification ?? true,
+            dictionary: PersonalDictionary(rules: environment.config.dictionary),
             observer: debug
                 ? DebugReporter.observer(
                     mode: active?.corrections ?? .strict,

@@ -484,3 +484,58 @@ private let dropAnAccent: @Sendable ([String]) -> [String] = { items in
     #expect(result.correctedText.contains("navic"))
     #expect(result.changedSegmentCount == 1)
 }
+
+// MARK: - Personal dictionary
+
+private func dictionaryPipeline(
+    _ provider: any LLMProvider, corrections: CorrectionMode = .strict, verification: Bool = true
+) throws -> Pipeline {
+    Pipeline(
+        registry: try FormatRegistry(rules: .builtIn),
+        provider: provider,
+        limits: .builtIn,
+        promptOverride: nil,
+        corrections: corrections,
+        verification: verification,
+        dictionary: PersonalDictionary(rules: [DictionaryRule(from: "docs", to: "docs")]))
+}
+
+/// The model the dictionary exists for: it puts accents into an English term.
+private let accentsDocs: @Sendable ([String]) -> [String] = { items in
+    items.map { $0.replacingOccurrences(of: "docs", with: "dočš") }
+}
+
+@Test func dictionaryOverridesTheModelBeforeVerification() async throws {
+    let result = try await dictionaryPipeline(FakeProvider(transform: accentsDocs))
+        .run(ClipboardInput(text: "otevri google docs"))
+    #expect(result.correctedText == "otevri google docs")
+}
+
+@Test func dictionaryAppliesWithVerificationOff() async throws {
+    let result = try await dictionaryPipeline(FakeProvider(transform: accentsDocs), verification: false)
+        .run(ClipboardInput(text: "otevri google docs"))
+    #expect(result.correctedText == "otevri google docs")
+}
+
+@Test func dictionaryAppliesInATolerantMode() async throws {
+    let fixesTypoAndAccents = FakeProvider { $0.map { _ in "google dočš" } }
+    let result = try await dictionaryPipeline(fixesTypoAndAccents, corrections: .minorFixes)
+        .run(ClipboardInput(text: "gogle docs"))
+    #expect(result.correctedText == "google docs")
+}
+
+@Test func dictionaryDoesNotChangeWhatVerificationRefuses() async {
+    let chatty = FakeProvider { $0.map { $0 + " (hotovo)" } }
+    await #expect(throws: PipelineError.verificationFailed(failedSegments: 1)) {
+        try await dictionaryPipeline(chatty).run(ClipboardInput(text: "otevri google docs"))
+    }
+}
+
+@Test func dictionaryResultIsWhatTheCacheServes() async throws {
+    let provider = FakeProvider(transform: accentsDocs)
+    let input = ClipboardInput(text: "<p>google docs</p>", uti: "public.html", plainText: "google docs")
+    let result = try await dictionaryPipeline(provider).run(input)
+    #expect(result.correctedText == "<p>google docs</p>")
+    #expect(result.correctedPlainText == "google docs")
+    #expect(provider.callCount == 1)
+}
