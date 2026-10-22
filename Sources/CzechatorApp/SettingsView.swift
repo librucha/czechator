@@ -474,10 +474,12 @@ struct SettingsView: View {
                 ForEach($form.dictionaryRows) { $row in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            TextField("Zadaný text", text: $row.from)
+                            TextField("Zadaný text", text: $row.from, prompt: Text("Zadaný text"))
+                                .labelsHidden()
                             Image(systemName: "arrow.right")
                                 .foregroundStyle(.secondary)
-                            TextField("Požadovaný text", text: $row.to)
+                            TextField("Požadovaný text", text: $row.to, prompt: Text("Požadovaný text"))
+                                .labelsHidden()
                             Button {
                                 form.removeDictionaryRow(id: row.id)
                             } label: {
