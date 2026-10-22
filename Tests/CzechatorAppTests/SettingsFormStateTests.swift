@@ -141,3 +141,59 @@ private func loadedForm(_ mutate: (inout Config) -> Void = { _ in }) -> Settings
     #expect(form.config.trigger.kind == .doubleTap)
     #expect(form.canSave)
 }
+
+// MARK: - Personal dictionary
+
+@Test func dictionaryRowsLoadFromTheConfig() {
+    let form = loadedForm { $0.dictionary = [DictionaryRule(from: "docs", to: "docs")] }
+    #expect(form.dictionaryRows.map(\.from) == ["docs"])
+}
+
+@Test func aNewRowCopiesTheInputIntoTheTarget() {
+    var form = loadedForm()
+    form.addDictionaryRow(copying: "google docs")
+    #expect(form.dictionaryRows.last?.to == "google docs")
+}
+
+@Test func aRowThatChangesLettersBlocksSaving() {
+    var form = loadedForm()
+    form.addDictionaryRow(copying: "teda")
+    form.dictionaryRows[0].to = "tedy"
+    #expect(form.dictionaryProblem(for: form.dictionaryRows[0].id) != nil)
+    #expect(!form.canSave)
+}
+
+@Test func aDuplicateRowBlocksSaving() {
+    var form = loadedForm()
+    form.addDictionaryRow(copying: "rad")
+    form.dictionaryRows[0].to = "rád"
+    form.addDictionaryRow(copying: "Rad")
+    form.dictionaryRows[1].to = "řad"
+    #expect(form.dictionaryProblem(for: form.dictionaryRows[0].id) == nil)
+    #expect(form.dictionaryProblem(for: form.dictionaryRows[1].id) != nil)
+    #expect(!form.canSave)
+}
+
+@Test func anEmptyRowIsDroppedNotRejected() {
+    var form = loadedForm()
+    form.addDictionaryRow()
+    #expect(form.canSave)
+    #expect(form.resolvedConfig.dictionary.isEmpty)
+}
+
+@Test func aSingleWordRuleWarnsButSaves() {
+    var form = loadedForm()
+    form.addDictionaryRow(copying: "rad")
+    form.dictionaryRows[0].to = "rád"
+    #expect(form.dictionaryWarning(for: form.dictionaryRows[0].id)?.contains("chce byt") == true)
+    #expect(form.canSave)
+    form.dictionaryRows[0].from = "chce byt"
+    form.dictionaryRows[0].to = "chce být"
+    #expect(form.dictionaryWarning(for: form.dictionaryRows[0].id) == nil)
+}
+
+@Test func removingARowDropsItFromTheConfig() {
+    var form = loadedForm { $0.dictionary = [DictionaryRule(from: "docs", to: "docs")] }
+    form.removeDictionaryRow(id: form.dictionaryRows[0].id)
+    #expect(form.resolvedConfig.dictionary.isEmpty)
+}

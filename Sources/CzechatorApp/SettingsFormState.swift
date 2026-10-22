@@ -33,6 +33,10 @@ struct SettingsFormState: Equatable {
     /// and the first collision would have to be undone rather than refused.
     var editedProfileName: String = ""
 
+    /// The personal dictionary as rows being typed: a half-filled row is a
+    /// normal state while editing, which a `DictionaryRule` cannot represent.
+    var dictionaryRows: [DictionaryRow] = []
+
     /// The shortcut, reached through the first binding.
     ///
     /// `load` guarantees there is one, so this never has to invent it.
@@ -82,7 +86,7 @@ struct SettingsFormState: Equatable {
     /// the double-tap side would leave no trigger at all on switching back.
     var canSave: Bool {
         shortcutIsValid && configProblem == nil && profileNameProblem == nil
-            && patternProblem == nil
+            && patternProblem == nil && !dictionaryHasProblem
     }
 
     /// Replaces the draft with what is actually in effect. The window is not a
@@ -100,6 +104,7 @@ struct SettingsFormState: Equatable {
         for list in PatternList.allCases {
             listText[list] = Self.text(from: config[keyPath: list.keyPath])
         }
+        dictionaryRows = config.dictionary.map { DictionaryRow(from: $0.from, to: $0.to) }
         selectProfile(config.activeProfile)
     }
 
@@ -189,6 +194,7 @@ struct SettingsFormState: Equatable {
         for list in PatternList.allCases {
             resolved[keyPath: list.keyPath] = Self.items(from: listText[list] ?? "")
         }
+        resolved.dictionary = dictionaryRows.filter { !$0.isBlank }.map(\.rule)
         return resolved
     }
 
@@ -357,5 +363,76 @@ struct SettingsFormState: Equatable {
         if config.activeProfile == editedProfile { config.activeProfile = name }
         editedProfile = name
         editedProfileName = name
+    }
+}
+
+// MARK: - Personal dictionary
+
+extension SettingsFormState {
+
+    struct DictionaryRow: Equatable, Identifiable {
+        let id: UUID
+        var from: String
+        var to: String
+
+        init(id: UUID = UUID(), from: String, to: String) {
+            self.id = id
+            self.from = from
+            self.to = to
+        }
+
+        /// Both fields empty: not an error, just a row nobody filled in.
+        var isBlank: Bool {
+            from.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && to.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        var rule: DictionaryRule { DictionaryRule(from: from, to: to) }
+    }
+
+    static let singleWordWarning =
+        "Pravidlo s jedním slovem zasáhne každý jeho výskyt bez ohledu na kontext — "
+        + "`rad` může být *rád*, *řád* i *řad* — a nepokryje jiné tvary "
+        + "(`Ahmadínežád` nepokryje `Ahmadínežáda`). Bezpečnější je zapsat ho jako frázi, "
+        + "např. `chce byt` → `chce být`."
+
+    /// The most common rule protects a term, so the target starts as a copy.
+    mutating func addDictionaryRow(copying from: String = "") {
+        dictionaryRows.append(DictionaryRow(from: from, to: from))
+    }
+
+    mutating func removeDictionaryRow(id: UUID) {
+        dictionaryRows.removeAll { $0.id == id }
+    }
+
+    /// Why this row cannot be saved, in the words `Config.validate` uses for
+    /// the same rule in the file; nil for a valid or a blank row.
+    func dictionaryProblem(for id: UUID) -> String? {
+        guard let index = dictionaryRows.firstIndex(where: { $0.id == id }) else { return nil }
+        let row = dictionaryRows[index]
+        guard !row.isBlank else { return nil }
+        let rule = row.rule
+        if rule.from.isEmpty || rule.to.isEmpty { return "Vyplňte oba texty." }
+        if let problem = rule.problem {
+            return ErrorMessages.describe(
+                ConfigError.invalidDictionaryRule(from: rule.from, problem: problem))
+        }
+        let earlier = dictionaryRows[..<index].filter { !$0.isBlank }
+        if earlier.contains(where: { $0.rule.matchKey == rule.matchKey }) {
+            return ErrorMessages.describe(ConfigError.duplicateDictionaryRule(from: rule.from))
+        }
+        return nil
+    }
+
+    /// Advisory only: a single word is allowed, it is just rarely what you want.
+    func dictionaryWarning(for id: UUID) -> String? {
+        guard let row = dictionaryRows.first(where: { $0.id == id }), !row.isBlank,
+            dictionaryProblem(for: id) == nil, row.rule.isSingleWord
+        else { return nil }
+        return Self.singleWordWarning
+    }
+
+    var dictionaryHasProblem: Bool {
+        dictionaryRows.contains { dictionaryProblem(for: $0.id) != nil }
     }
 }

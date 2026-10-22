@@ -22,6 +22,8 @@ struct SettingsView: View {
                 .tabItem { Label("Základní", systemImage: "slider.horizontal.3") }
             advanced
                 .tabItem { Label("Pokročilé", systemImage: "gearshape.2") }
+            dictionary
+                .tabItem { Label("Slovník", systemImage: "character.book.closed") }
         }
         .safeAreaInset(edge: .bottom) { saveBar }
         .frame(minWidth: 520, minHeight: 520)
@@ -453,6 +455,54 @@ struct SettingsView: View {
     }
 
     // MARK: - Uložit
+
+    // MARK: - Slovník
+
+    private var dictionary: some View {
+        Form {
+            Section("Osobní slovník") {
+                Text(
+                    "Pravidla se uplatní na každý výstup modelu, ještě před ověřením. "
+                        + "Smí měnit jen diakritiku. Stejný text v obou polích chrání "
+                        + "výraz před háčky a čárkami, které by model přidal "
+                        + "(google docs → google docs). Diakritiku, kterou jste napsali "
+                        + "sami, slovník nepřepíše."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                ForEach($form.dictionaryRows) { $row in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            TextField("Zadaný text", text: $row.from)
+                            Image(systemName: "arrow.right")
+                                .foregroundStyle(.secondary)
+                            TextField("Požadovaný text", text: $row.to)
+                            Button {
+                                form.removeDictionaryRow(id: row.id)
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Odebrat pravidlo")
+                        }
+                        if let problem = form.dictionaryProblem(for: row.id) {
+                            Label(problem, systemImage: "xmark.circle")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        } else if let warning = form.dictionaryWarning(for: row.id) {
+                            Label(LocalizedStringKey(warning), systemImage: "exclamationmark.triangle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Button("Přidat pravidlo") { form.addDictionaryRow() }
+            }
+        }
+        .formStyle(.grouped)
+    }
 
     private var saveBar: some View {
         HStack {
