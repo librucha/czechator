@@ -56,6 +56,11 @@ word, a swallowed non-breaking space, anything the model does reaches the
 clipboard as-is. Every shipped profile keeps verification on; turning it off
 is a deliberate choice per profile, for a model you already trust completely.
 
+Your [personal dictionary](#personal-dictionary) is applied to the model's
+answer before the check. Its rules may change diacritics only, so they never
+change what the check accepts or refuses; with verification off they still
+apply, and have the last word over the model.
+
 ## Features
 
 - **Two ways to trigger it** — a global hotkey (`Cmd+Ctrl+D` by default), or
@@ -71,6 +76,9 @@ is a deliberate choice per profile, for a model you already trust completely.
   and plain text, so pasting into Word keeps the formatting.
 - **Menu bar app** with run state, history and undo — click a history entry to
   put the original text back on the clipboard.
+- **Personal dictionary.** Terms the model keeps getting wrong — `google docs`
+  turned into `google dočš`, a name without its accents — are written once in
+  the settings and fixed on every run. Rules change diacritics only.
 - **Tunable segmentation.** URLs, e-mails, code spans and fenced blocks are
   skipped by default; the rules live in the config file, not in the source.
 - **Debugging built in.** `czechator segments` shows exactly what would be sent
@@ -183,7 +191,7 @@ to change before handing the `.app` to someone else.
 
 ```bash
 make build     # both targets
-make test      # 431 tests
+make test      # 463 tests
 make icon      # build/Czechator.icns from img/exports/AppIcon.appiconset
 make app       # build/Czechator.app
 make fixtures  # regenerate the embedded fixtures after editing Fixtures/
@@ -394,6 +402,13 @@ features:
   history: true
   historySize: 20
   letterCase: preserve   # preserve | segmentStart | model
+
+dictionary: []           # personal dictionary, default empty; rules change diacritics only
+# dictionary:
+#   - from: google docs
+#     to: google docs    # the same text twice protects a term from added accents
+#   - from: Ahmadinezad
+#     to: Ahmadínežád
 ```
 
 ### Correction modes
@@ -462,6 +477,38 @@ segments rather than about sentences.
 fix capitalization, so forcing the original case back would undo the very thing
 that was requested. The settings window greys the control out when the active
 profile is tolerant.
+
+### Personal dictionary
+
+Some terms a model gets wrong every time: it puts accents into `google docs`
+(`google dočš`), or leaves them out of a name it has never seen. The
+**Slovník** tab of the settings takes pairs of *zadaný text* → *požadovaný
+text*, and czechator writes them into every answer of every model, before the
+check:
+
+| rule | the model returned | what is written |
+|---|---|---|
+| `google docs` → `google docs` | `google dočš` | `google docs` |
+| `Ahmadinezad` → `Ahmadínežád` | `AHMADINEZAD rekl` | `AHMADÍNEŽÁD rekl` |
+
+- **Diacritics only.** The two sides must be the same letters apart from
+  accents and case; anything else is refused, in the window and in a
+  hand-edited file. The same text on both sides protects a term.
+- **A match ignores accents and case** and must stand on word boundaries:
+  `docs` does not touch `docsy`. A space in a rule also matches a non-breaking
+  one. The longer of two overlapping rules wins.
+- **Case comes from the answer, accents from the rule** — so strict mode's case
+  alignment survives.
+- **What you typed yourself is left alone.** If the input already had any
+  accent in the matched stretch, the rule does not apply there: the dictionary
+  corrects the model, not you.
+- **One word is a blunt rule.** It hits every occurrence whatever the context —
+  `rad` is *rád*, *řád* and *řad* — so the window warns and suggests a phrase
+  (`chce byt` → `chce být`).
+
+The rules live under `dictionary:` in `config.yaml` as `from`/`to` pairs, which
+is also the format the fine-tuning pipeline in [`llm/`](llm/README.md) will read
+to turn them into training data.
 
 ### API keys
 
@@ -591,6 +638,15 @@ rebuild.
   diacritics changed; it cannot prove the diacritics are right. `bít` and `byt`
   fold identically, so picking the wrong one passes. That is a model-quality
   problem, and the reason the model matters.
+- **The personal dictionary knows exact forms only.** `Ahmadínežád` does not
+  cover `Ahmadínežáda`; every declined form is a rule of its own. A one-word
+  rule ignores context and fixes `rad` the same way in every sentence.
+- **The personal dictionary leaves alone what it cannot be sure of.** A matched
+  stretch whose input already had an accent is not touched, even when that
+  accent is wrong. In a tolerant mode, where the model may change the length of
+  a segment, a rule applies only where its stretch lines up with the input; a
+  match inside text the model rebuilt is left as the model wrote it. A rule
+  never spans two segments, so it cannot match across a line break.
 - **A tolerant mode bounds the damage, it does not prevent it.** The per-word
   budget proves no word changed by more than its allowance — not that no word
   should have changed. Nothing caps how many words in one segment may each spend

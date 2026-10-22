@@ -74,3 +74,23 @@ explicitní akci „tohle bylo špatně“ v historii v menu.
   `strict` režim opravit nesmí. Záznam proto musí nést režim oprav, ať se při
   importu dá filtrovat.
 - Nová cesta, kterou je potřeba popsat v README včetně Known limitations.
+
+**Souvislost s osobním slovníkem** (hotový, viz
+`docs/superpowers/specs/2026-10-21-osobni-slovnik-design.md`): opravený
+odmítnutý segment může rovnou nabídnout pravidlo do slovníku.
+
+## 3. Trénovací data z osobního slovníku
+
+**Problém.** Osobní slovník opravuje chyby modelu deterministicky, ale model
+se z nich nic nenaučí; každý nový výraz je další pravidlo.
+
+**Návrh.** Krok v `llm/`, který načte `dictionary: [{from, to}]` z
+`~/.config/czechator/config.yaml`, nechá ke každému páru vygenerovat přes
+Batch API několik vět (stejně jako hybridní eval set) a výsledek projde ruční
+kontrolou (`review-export` / `review-import`). Věty pak jdou do trénovacích
+dat další iterace, případně i do privátního eval setu, aby šlo změřit, že se
+model výrazy naučil.
+
+**Co to stojí.** Jeden placený batch na iteraci a ruční kontrola. Bez kontroly
+by se do dat dostaly chyby generátoru u přesně těch slov, kde na správnosti
+záleží nejvíc.
