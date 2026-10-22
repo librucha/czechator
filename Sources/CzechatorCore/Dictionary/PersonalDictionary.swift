@@ -23,11 +23,16 @@ public struct DictionaryRule: Sendable, Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey { case from, to }
 
-    /// Pasted text often arrives decomposed (`s` + U+030C) or with a stray
-    /// space at an edge; neither is part of the rule.
+    /// Pasted text often arrives decomposed (`s` + U+030C), with a stray space
+    /// at an edge, or with invisible characters a web page put inside a word
+    /// (soft hyphen, zero-width space). None of it is part of the rule, and an
+    /// invisible character would leave a valid rule that never matches.
     private static func clean(_ text: String) -> String {
-        text.precomposedStringWithCanonicalMapping.trimmingCharacters(in: .whitespacesAndNewlines)
+        String(text.precomposedStringWithCanonicalMapping.filter { !invisible.contains($0) })
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    private static let invisible: Set<Character> = ["\u{00AD}", "\u{200B}", "\u{2060}", "\u{FEFF}"]
 }
 
 public enum DictionaryRuleProblem: Sendable, Equatable {
@@ -41,7 +46,7 @@ extension DictionaryRule {
     public var problem: DictionaryRuleProblem? {
         if from.isEmpty || to.isEmpty { return .empty }
         if from.contains(where: \.isNewline) || to.contains(where: \.isNewline) { return .multiline }
-        if matchKey != DiacriticFolding.fold(to).lowercased() { return .differsBeyondDiacritics }
+        if matchKey != to.map(PersonalDictionary.key).joined() { return .differsBeyondDiacritics }
         return nil
     }
 
@@ -51,7 +56,10 @@ extension DictionaryRule {
 
     /// What a match is looked up by: two rules with the same key would catch
     /// the same text, so the key is also what makes a rule a duplicate.
-    public var matchKey: String { DiacriticFolding.fold(from).lowercased() }
+    /// Built from the same per-character key the matcher uses, so a rule
+    /// typed with a space and one pasted with a non-breaking space count as
+    /// the same rule.
+    public var matchKey: String { from.map(PersonalDictionary.key).joined() }
 }
 
 public struct PersonalDictionary: Sendable, Equatable {
@@ -118,7 +126,7 @@ extension PersonalDictionary {
 
     /// Diacritics and case folded away; any whitespace counts as a space, so a
     /// rule's space also matches the non-breaking one of an HTML document.
-    private static func key(_ character: Character) -> String {
+    static func key(_ character: Character) -> String {
         character.isWhitespace ? " " : DiacriticFolding.fold(String(character)).lowercased()
     }
 

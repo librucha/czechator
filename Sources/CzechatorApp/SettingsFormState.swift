@@ -76,6 +76,10 @@ struct SettingsFormState: Equatable {
         do {
             try resolvedConfig.validate()
             return nil
+        } catch ConfigError.invalidDictionaryRule, ConfigError.duplicateDictionaryRule {
+            // The row says what is wrong; the bar only has to say where, since
+            // it is also visible from the other tabs.
+            return "Ve slovníku je chybný řádek — viz záložka Slovník."
         } catch {
             return ErrorMessages.describe(error)
         }
@@ -414,12 +418,32 @@ extension SettingsFormState {
         let rule = row.rule
         if rule.from.isEmpty || rule.to.isEmpty { return "Vyplňte oba texty." }
         if let problem = rule.problem {
-            return ErrorMessages.describe(
+            let message = ErrorMessages.describe(
                 ConfigError.invalidDictionaryRule(from: rule.from, problem: problem))
+            guard problem == .differsBeyondDiacritics, let at = Self.firstDifference(rule) else {
+                return message
+            }
+            return message + " Liší se \(at.position). znak: „\(at.from)“ × „\(at.to)“."
         }
-        let earlier = dictionaryRows[..<index].filter { !$0.isBlank }
-        if earlier.contains(where: { $0.rule.matchKey == rule.matchKey }) {
-            return ErrorMessages.describe(ConfigError.duplicateDictionaryRule(from: rule.from))
+        if let earlier = dictionaryRows[..<index].firstIndex(where: {
+            !$0.isBlank && $0.rule.matchKey == rule.matchKey
+        }) {
+            return "Stejné pravidlo už je na řádku \(earlier + 1) "
+                + "(bez ohledu na diakritiku a velikost písmen)."
+        }
+        return nil
+    }
+
+    /// Where two sides first differ beyond diacritics and case, 1-based.
+    private static func firstDifference(_ rule: DictionaryRule) -> (position: Int, from: Character, to: Character)? {
+        let from = Array(rule.from)
+        let to = Array(rule.to)
+        for index in 0..<max(from.count, to.count) {
+            let left = index < from.count ? from[index] : " "
+            let right = index < to.count ? to[index] : " "
+            if DiacriticFolding.fold(String(left)).lowercased() != DiacriticFolding.fold(String(right)).lowercased() {
+                return (index + 1, left, right)
+            }
         }
         return nil
     }

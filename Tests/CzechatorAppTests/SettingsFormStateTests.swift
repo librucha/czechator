@@ -192,6 +192,32 @@ private func loadedForm(_ mutate: (inout Config) -> Void = { _ in }) -> Settings
     #expect(form.dictionaryWarning(for: form.dictionaryRows[0].id) == nil)
 }
 
+@Test func aBadRowIsExplainedOnceAndTheSaveBarPointsToTheTab() {
+    // The row carries the reason; the save bar must not repeat it, nor
+    // contradict it ("je prázdné" for a half-filled row).
+    var form = loadedForm()
+    form.addDictionaryRow(copying: "teda")
+    form.dictionaryRows[0].to = ""
+    #expect(form.dictionaryProblem(for: form.dictionaryRows[0].id) == "Vyplňte oba texty.")
+    #expect(form.configProblem == "Ve slovníku je chybný řádek — viz záložka Slovník.")
+}
+
+@Test func theRowMessageSaysWhereTheTextsDiffer() {
+    var form = loadedForm()
+    form.addDictionaryRow(copying: "teda")
+    form.dictionaryRows[0].to = "tedy"
+    #expect(form.dictionaryProblem(for: form.dictionaryRows[0].id)?.contains("4. znak: „a“ × „y“") == true)
+}
+
+@Test func aDuplicateRowNamesTheRowItRepeats() {
+    var form = loadedForm()
+    form.addDictionaryRow(copying: "rad")
+    form.dictionaryRows[0].to = "rád"
+    form.addDictionaryRow(copying: "Rad")
+    form.dictionaryRows[1].to = "řad"
+    #expect(form.dictionaryProblem(for: form.dictionaryRows[1].id)?.contains("na řádku 1") == true)
+}
+
 @Test func removingARowDropsItFromTheConfig() {
     var form = loadedForm { $0.dictionary = [DictionaryRule(from: "docs", to: "docs")] }
     form.removeDictionaryRow(id: form.dictionaryRows[0].id)

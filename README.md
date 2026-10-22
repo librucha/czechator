@@ -59,7 +59,8 @@ is a deliberate choice per profile, for a model you already trust completely.
 Your [personal dictionary](#personal-dictionary) is applied to the model's
 answer before the check. Its rules may change diacritics only, so they never
 change what the check accepts or refuses; with verification off they still
-apply, and have the last word over the model.
+apply. Where a rule applies, it overrides the model — except over accents you
+typed yourself, which it leaves alone.
 
 ## Features
 
@@ -78,7 +79,8 @@ apply, and have the last word over the model.
   put the original text back on the clipboard.
 - **Personal dictionary.** Terms the model keeps getting wrong — `google docs`
   turned into `google dočš`, a name without its accents — are written once in
-  the settings and fixed on every run. Rules change diacritics only.
+  the settings and fixed wherever the model gets them wrong. Rules change
+  diacritics only, and never accents you typed yourself.
 - **Tunable segmentation.** URLs, e-mails, code spans and fenced blocks are
   skipped by default; the rules live in the config file, not in the source.
 - **Debugging built in.** `czechator segments` shows exactly what would be sent
@@ -191,7 +193,7 @@ to change before handing the `.app` to someone else.
 
 ```bash
 make build     # both targets
-make test      # 463 tests
+make test      # 468 tests
 make icon      # build/Czechator.icns from img/exports/AppIcon.appiconset
 make app       # build/Czechator.app
 make fixtures  # regenerate the embedded fixtures after editing Fixtures/
@@ -646,7 +648,8 @@ rebuild.
   accent is wrong. In a tolerant mode, where the model may change the length of
   a segment, a rule applies only where its stretch lines up with the input; a
   match inside text the model rebuilt is left as the model wrote it. A rule
-  never spans two segments, so it cannot match across a line break.
+  never spans two segments: in plain text, where every line is a segment, it
+  cannot match across a line break.
 - **A tolerant mode bounds the damage, it does not prevent it.** The per-word
   budget proves no word changed by more than its allowance — not that no word
   should have changed. Nothing caps how many words in one segment may each spend

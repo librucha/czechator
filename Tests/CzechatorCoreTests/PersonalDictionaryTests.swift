@@ -30,6 +30,27 @@ import Testing
     #expect(rule.from == "škola")
 }
 
+@Test func aRuleWithANonBreakingSpaceIsADuplicateOfTheTypedOne() {
+    // Matching treats every space alike, so the two would catch the same text
+    // and which one won would be left to an unstable sort.
+    var config = Config.builtIn
+    config.dictionary = [
+        DictionaryRule(from: "google docs", to: "google docs"),
+        DictionaryRule(from: "google\u{00A0}docs", to: "google\u{00A0}dočš"),
+    ]
+    #expect(throws: ConfigError.duplicateDictionaryRule(from: "google\u{00A0}docs")) {
+        try config.validate()
+    }
+}
+
+@Test func invisibleCharactersPastedFromTheWebAreDropped() {
+    // A soft hyphen or zero-width space inside a pasted rule would make it
+    // valid but never match.
+    let rule = DictionaryRule(from: "Ahmadi\u{00AD}nezad\u{200B}", to: "Ahmadínežád")
+    #expect(rule.from == "Ahmadinezad")
+    #expect(rule.problem == nil)
+}
+
 @Test func singleWordMeansNoWhitespace() {
     #expect(DictionaryRule(from: "rad", to: "rád").isSingleWord)
     #expect(!DictionaryRule(from: "chce byt", to: "chce být").isSingleWord)
